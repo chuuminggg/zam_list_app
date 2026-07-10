@@ -12,9 +12,10 @@ const EMPTY_COPY: Record<WishFilter, { title: string; description: string }> = {
 interface WishListProps {
   items: WishItem[];
   filter: WishFilter;
+  onEdit: (item: WishItem) => void;
 }
 
-export default function WishList({ items, filter }: WishListProps) {
+export default function WishList({ items, filter, onEdit }: WishListProps) {
   if (items.length === 0) {
     return <EmptyState icon="🎁" {...EMPTY_COPY[filter]} />;
   }
@@ -22,7 +23,7 @@ export default function WishList({ items, filter }: WishListProps) {
   return (
     <ul className="space-y-3">
       {items.map((item) => (
-        <WishCard key={item.id} item={item} />
+        <WishCard key={item.id} item={item} onEdit={() => onEdit(item)} />
       ))}
     </ul>
   );
