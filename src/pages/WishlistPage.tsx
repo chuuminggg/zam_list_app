@@ -4,12 +4,16 @@ import WishFilterBar from '../components/wishlist/WishFilterBar';
 import WishForm from '../components/wishlist/WishForm';
 import WishList from '../components/wishlist/WishList';
 import { useWishStore } from '../stores/wishStore';
+import type { WishItem } from '../types';
+
+/** 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 항목. */
+type FormTarget = WishItem | 'new' | null;
 
 export default function WishlistPage() {
   const items = useWishStore((s) => s.items);
   const filter = useWishStore((s) => s.filter);
   const sort = useWishStore((s) => s.sort);
-  const [formOpen, setFormOpen] = useState(false);
+  const [formTarget, setFormTarget] = useState<FormTarget>(null);
 
   const visibleItems = useMemo(
     () =>
@@ -25,19 +29,27 @@ export default function WishlistPage() {
     [items, filter, sort]
   );
 
+  const editingItem = formTarget && formTarget !== 'new' ? formTarget : undefined;
+
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">위시리스트</h1>
-        <Button variant="accent" onClick={() => setFormOpen(true)}>
+        <Button variant="accent" onClick={() => setFormTarget('new')}>
           + 추가
         </Button>
       </div>
 
       <WishFilterBar />
-      <WishList items={visibleItems} filter={filter} />
+      <WishList items={visibleItems} filter={filter} onEdit={setFormTarget} />
 
-      <WishForm open={formOpen} onClose={() => setFormOpen(false)} />
+      {/* key로 대상이 바뀔 때마다 폼 상태를 새로 초기화한다. */}
+      <WishForm
+        key={editingItem?.id ?? 'new'}
+        open={formTarget !== null}
+        item={editingItem}
+        onClose={() => setFormTarget(null)}
+      />
     </div>
   );
 }

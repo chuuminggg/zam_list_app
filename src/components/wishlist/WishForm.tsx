@@ -26,23 +26,33 @@ const EMPTY_FORM = {
   status: 'want' as WishItem['status'],
 };
 
+type FormState = typeof EMPTY_FORM;
+
+const toForm = (item: WishItem): FormState => ({
+  name: item.name,
+  url: item.url ?? '',
+  price: item.price != null ? String(item.price) : '',
+  memo: item.memo ?? '',
+  imageUrl: item.imageUrl ?? '',
+  category: item.category,
+  status: item.status,
+});
+
 interface WishFormProps {
   open: boolean;
   onClose: () => void;
+  /** 전달하면 수정 모드, 생략하면 추가 모드. */
+  item?: WishItem;
 }
 
-export default function WishForm({ open, onClose }: WishFormProps) {
+export default function WishForm({ open, onClose, item }: WishFormProps) {
   const addItem = useWishStore((s) => s.addItem);
-  const [form, setForm] = useState(EMPTY_FORM);
-
-  const close = () => {
-    setForm(EMPTY_FORM);
-    onClose();
-  };
+  const updateItem = useWishStore((s) => s.updateItem);
+  const [form, setForm] = useState<FormState>(item ? toForm(item) : EMPTY_FORM);
 
   const handleSubmit = () => {
     if (!form.name.trim()) return;
-    addItem({
+    const payload = {
       name: form.name.trim(),
       url: form.url.trim() || undefined,
       price: form.price ? Number(form.price) : undefined,
@@ -50,12 +60,17 @@ export default function WishForm({ open, onClose }: WishFormProps) {
       imageUrl: form.imageUrl.trim() || undefined,
       category: form.category.trim(),
       status: form.status,
-    });
-    close();
+    };
+    if (item) {
+      updateItem(item.id, payload);
+    } else {
+      addItem(payload);
+    }
+    onClose();
   };
 
   return (
-    <Modal open={open} title="항목 추가" onClose={close}>
+    <Modal open={open} title={item ? '항목 수정' : '항목 추가'} onClose={onClose}>
       {FIELDS.map(({ key, placeholder, type }) => (
         <Input
           key={key}
@@ -69,6 +84,7 @@ export default function WishForm({ open, onClose }: WishFormProps) {
       ))}
       <Select
         accent="purple"
+        aria-label="상태"
         value={form.status}
         onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as WishItem['status'] }))}
         className="text-sm"
@@ -80,11 +96,16 @@ export default function WishForm({ open, onClose }: WishFormProps) {
         ))}
       </Select>
       <div className="flex gap-2 pt-2">
-        <Button variant="ghost" onClick={close} className="flex-1">
+        <Button variant="ghost" onClick={onClose} className="flex-1">
           취소
         </Button>
-        <Button variant="accent" onClick={handleSubmit} disabled={!form.name.trim()} className="flex-1">
-          추가
+        <Button
+          variant="accent"
+          onClick={handleSubmit}
+          disabled={!form.name.trim()}
+          className="flex-1"
+        >
+          {item ? '저장' : '추가'}
         </Button>
       </div>
     </Modal>

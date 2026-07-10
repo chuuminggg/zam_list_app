@@ -7,9 +7,10 @@ import type { WishItem } from '../../types';
 
 interface WishCardProps {
   item: WishItem;
+  onEdit: () => void;
 }
 
-export default function WishCard({ item }: WishCardProps) {
+export default function WishCard({ item, onEdit }: WishCardProps) {
   const updateItem = useWishStore((s) => s.updateItem);
   const deleteItem = useWishStore((s) => s.deleteItem);
 
@@ -25,15 +26,21 @@ export default function WishCard({ item }: WishCardProps) {
       )}
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <span className="font-medium text-gray-900 dark:text-white truncate">{item.name}</span>
-          <IconButton
-            label="삭제"
-            tone="danger"
-            onClick={() => deleteItem(item.id)}
-            className="flex-shrink-0"
+          <button
+            type="button"
+            onClick={onEdit}
+            className="font-medium text-gray-900 dark:text-white truncate text-left"
           >
-            ✕
-          </IconButton>
+            {item.name}
+          </button>
+          <div className="flex items-center flex-shrink-0">
+            <IconButton label="수정" onClick={onEdit}>
+              ✎
+            </IconButton>
+            <IconButton label="삭제" tone="danger" onClick={() => deleteItem(item.id)}>
+              ✕
+            </IconButton>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-1.5">
           <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
