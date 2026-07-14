@@ -1,4 +1,6 @@
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
+import ThemeToggle from './components/common/ThemeToggle';
+import { useTheme } from './hooks/useTheme';
 import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
 import './index.css';
@@ -8,6 +10,8 @@ const NAV_ACTIVE = 'bg-indigo-600 text-white';
 const NAV_IDLE = 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800';
 
 export default function App() {
+  useTheme();
+
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -27,6 +31,9 @@ export default function App() {
             >
               위시리스트
             </NavLink>
+            <div className="ml-auto">
+              <ThemeToggle />
+            </div>
           </nav>
         </header>
         <main className="py-6">

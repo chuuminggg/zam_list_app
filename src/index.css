@@ -1,7 +1,4 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    color-scheme: light dark;
-  }
-}
+/* 기본값인 prefers-color-scheme 대신 <html>의 .dark 클래스를 따르게 한다. */
+@custom-variant dark (&:where(.dark, .dark *));
