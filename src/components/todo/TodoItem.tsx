@@ -82,7 +82,7 @@ export default function TodoItem({ todo }: TodoItemProps) {
   }
 
   return (
-    <li className="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors hover:border-gray-300 dark:hover:border-gray-600">
+    <li className="flex items-center gap-2 sm:gap-3 bg-white dark:bg-gray-800 rounded-xl px-3 sm:px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors hover:border-gray-300 dark:hover:border-gray-600 animate-fade-in">
       <input
         type="checkbox"
         checked={todo.done}

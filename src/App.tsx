@@ -5,7 +5,7 @@ import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
 import './index.css';
 
-const NAV_BASE = 'px-4 py-2 rounded-lg text-sm font-medium transition-colors';
+const NAV_BASE = 'px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors';
 const NAV_ACTIVE = 'bg-indigo-600 text-white';
 const NAV_IDLE = 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800';
 
@@ -14,10 +14,10 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
-          <nav className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
-            <span className="font-bold text-gray-900 dark:text-white mr-4">ZAM List</span>
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
+        <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 transition-colors">
+          <nav className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-1 sm:gap-2">
+            <span className="font-bold text-gray-900 dark:text-white mr-1 sm:mr-3">ZAM List</span>
             <NavLink
               to="/"
               end

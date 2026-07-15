@@ -15,7 +15,7 @@ export default function WishCard({ item, onEdit }: WishCardProps) {
   const deleteItem = useWishStore((s) => s.deleteItem);
 
   return (
-    <li className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex gap-3 transition-colors hover:border-gray-300 dark:hover:border-gray-600">
+    <li className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex gap-3 transition-colors hover:border-gray-300 dark:hover:border-gray-600 animate-fade-in">
       {item.imageUrl && (
         <img
           src={item.imageUrl}

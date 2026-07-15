@@ -27,7 +27,7 @@ export default function Modal({ open, title, onClose, children }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -35,7 +35,7 @@ export default function Modal({ open, title, onClose, children }: ModalProps) {
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md space-y-3 shadow-xl max-h-[90vh] overflow-y-auto"
+        className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md space-y-3 shadow-xl max-h-[90vh] overflow-y-auto animate-pop-in"
       >
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
         {children}

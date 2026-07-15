@@ -6,7 +6,7 @@ interface EmptyStateProps {
 
 export default function EmptyState({ icon, title, description }: EmptyStateProps) {
   return (
-    <div className="text-center py-16 px-4">
+    <div className="text-center py-16 px-4 animate-fade-in">
       <div className="text-4xl mb-3" aria-hidden="true">
         {icon}
       </div>
