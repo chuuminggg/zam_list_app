@@ -23,22 +23,22 @@
 ## 핵심 기능
 
 ### 투두 (Todo)
-- [ ] 항목 추가 / 수정 / 삭제
-- [ ] 완료 체크 토글
-- [ ] 카테고리/태그 분류
-- [ ] 우선순위 설정 (High / Medium / Low)
-- [ ] 필터: 전체 / 완료 / 미완료
+- [x] 항목 추가 / 수정 / 삭제
+- [x] 완료 체크 토글
+- [x] 카테고리/태그 분류
+- [x] 우선순위 설정 (High / Medium / Low)
+- [x] 필터: 전체 / 완료 / 미완료
 
 ### 위시리스트 (Wishlist)
-- [ ] 항목 추가 (이름, URL, 가격, 메모, 이미지 URL)
-- [ ] 상태 관리: 원함 / 구매함 / 포기
-- [ ] 카테고리 분류
-- [ ] 정렬: 추가순 / 가격순
+- [x] 항목 추가 (이름, URL, 가격, 메모, 이미지 URL)
+- [x] 상태 관리: 원함 / 구매함 / 포기
+- [x] 카테고리 분류
+- [x] 정렬: 추가순 / 가격순
 
 ### 공통
-- [ ] localStorage 자동 저장 (Zustand persist)
-- [ ] 다크모드 토글
-- [ ] 반응형 레이아웃 (모바일 우선)
+- [x] localStorage 자동 저장 (Zustand persist)
+- [x] 다크모드 토글 (라이트 / 다크 / 시스템)
+- [x] 반응형 레이아웃 (모바일 우선)
 
 ---
 
@@ -113,25 +113,25 @@ src/
 - [x] 기본 레이아웃 & 네비게이션
 
 ### Phase 2 — 투두 기능
-- [ ] Zustand todoStore (persist)
-- [ ] TodoForm 컴포넌트
-- [ ] TodoItem 컴포넌트
-- [ ] 필터 & 정렬
+- [x] Zustand todoStore (persist)
+- [x] TodoForm 컴포넌트
+- [x] TodoItem 컴포넌트 (인라인 수정 포함)
+- [x] 필터 & 정렬
 
 ### Phase 3 — 위시리스트 기능
-- [ ] Zustand wishStore (persist)
-- [ ] WishForm 컴포넌트
-- [ ] WishItem 카드
-- [ ] 상태/정렬 필터
+- [x] Zustand wishStore (persist)
+- [x] WishForm 컴포넌트 (추가/수정 겸용)
+- [x] WishItem 카드
+- [x] 상태/정렬 필터
 
 ### Phase 4 — UI 폴리싱
-- [ ] 다크모드
-- [ ] 애니메이션 (Tailwind transition)
-- [ ] 빈 상태 UI
-- [ ] 모바일 반응형 점검
+- [x] 다크모드
+- [x] 애니메이션 (Tailwind transition)
+- [x] 빈 상태 UI
+- [x] 모바일 반응형 점검
 
 ### Phase 5 — 배포
-- [ ] GitHub 저장소 연결
+- [x] GitHub 저장소 연결
 - [ ] Vercel 프로젝트 생성
 - [ ] 도메인 설정 (선택)
 
