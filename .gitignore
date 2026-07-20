@@ -45,3 +45,6 @@ coverage
 
 # OS
 Thumbs.db
+
+# 로컬 작업 계획 문서 (원격에 공유하지 않음)
+PLAN.md
