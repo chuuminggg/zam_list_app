@@ -46,12 +46,21 @@ export function route(fn: RouteHandler): (request: Request) => Promise<Response>
 interface StringParamOptions {
   min?: number;
   max?: number;
+  /** 외부 API로 그대로 넘기는 ID 등은 허용 문자를 제한한다. */
+  pattern?: RegExp;
 }
 
-export function requiredString(url: URL, name: string, { min = 1, max = 100 }: StringParamOptions = {}): string {
+export function requiredString(
+  url: URL,
+  name: string,
+  { min = 1, max = 100, pattern }: StringParamOptions = {},
+): string {
   const value = url.searchParams.get(name)?.trim() ?? '';
   if (value.length < min || value.length > max) {
     throw new ApiException('BAD_REQUEST', `'${name}'은(는) ${min}~${max}자여야 합니다.`);
+  }
+  if (pattern && !pattern.test(value)) {
+    throw new ApiException('BAD_REQUEST', `'${name}' 형식이 올바르지 않습니다.`);
   }
   return value;
 }

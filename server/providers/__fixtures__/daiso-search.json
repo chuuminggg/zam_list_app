@@ -1,0 +1,42 @@
+{
+  "version": 43,
+  "returnCode": 1,
+  "status": 200,
+  "resultSet": {
+    "resultSize": 1,
+    "errorCode": 0,
+    "result": [
+      {
+        "errorCode": 0,
+        "totalSize": 1625,
+        "realSize": 2,
+        "resultDocuments": [
+          {
+            "PD_NO": "1047618",
+            "PDNM": "",
+            "EXH_PD_NM": "심플 팬트리수납함(약14*21*15 cm)",
+            "PD_PRC": "2000",
+            "PKUP_OR_PSBL_YN": "Y",
+            "SLE_STS_CD": "03",
+            "ATCH_FILE_URL": "/file/PD/20260119/eA4jhxzclhkWBLdfXdne1047618_00_00eA4jhxzclhkWBLdfXdne.jpg",
+            "BRND_NM": "",
+            "NEW_PD_YN": "N",
+            "SOLD_OUT_YN": "N"
+          },
+          {
+            "PD_NO": "1039098",
+            "PDNM": "",
+            "EXH_PD_NM": "도이수납함(26*18.5*16 cm)",
+            "PD_PRC": "2000",
+            "PKUP_OR_PSBL_YN": "N",
+            "SLE_STS_CD": "03",
+            "ATCH_FILE_URL": "/file/PD/20240327/BToU9iXRe3EhpiWwko9U1039098_00_00BToU9iXRe3EhpiWwko9U.jpg",
+            "BRND_NM": "",
+            "NEW_PD_YN": "Y",
+            "SOLD_OUT_YN": "Y"
+          }
+        ]
+      }
+    ]
+  }
+}
