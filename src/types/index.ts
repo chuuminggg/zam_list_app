@@ -1,3 +1,5 @@
+import type { StockProviderId } from '../../shared/api';
+
 export interface Todo {
   id: string;
   title: string;
@@ -9,6 +11,13 @@ export interface Todo {
 
 export type TodoFilter = 'all' | 'active' | 'done';
 
+/** 매장 재고 확인용으로 연결한 외부 상품 */
+export interface StockLink {
+  provider: StockProviderId;
+  productId: string;
+  productName: string;
+}
+
 export interface WishItem {
   id: string;
   name: string;
@@ -19,6 +28,7 @@ export interface WishItem {
   status: 'want' | 'bought' | 'dropped';
   category: string;
   createdAt: string;
+  stockLink?: StockLink;
 }
 
 export type WishFilter = 'all' | 'want' | 'bought' | 'dropped';

@@ -13,9 +13,10 @@ interface WishListProps {
   items: WishItem[];
   filter: WishFilter;
   onEdit: (item: WishItem) => void;
+  onCheckStock: (item: WishItem) => void;
 }
 
-export default function WishList({ items, filter, onEdit }: WishListProps) {
+export default function WishList({ items, filter, onEdit, onCheckStock }: WishListProps) {
   if (items.length === 0) {
     return <EmptyState icon="🎁" {...EMPTY_COPY[filter]} />;
   }
@@ -23,7 +24,12 @@ export default function WishList({ items, filter, onEdit }: WishListProps) {
   return (
     <ul className="space-y-3">
       {items.map((item) => (
-        <WishCard key={item.id} item={item} onEdit={() => onEdit(item)} />
+        <WishCard
+          key={item.id}
+          item={item}
+          onEdit={() => onEdit(item)}
+          onCheckStock={() => onCheckStock(item)}
+        />
       ))}
     </ul>
   );

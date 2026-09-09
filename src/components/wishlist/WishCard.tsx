@@ -8,9 +8,10 @@ import type { WishItem } from '../../types';
 interface WishCardProps {
   item: WishItem;
   onEdit: () => void;
+  onCheckStock: () => void;
 }
 
-export default function WishCard({ item, onEdit }: WishCardProps) {
+export default function WishCard({ item, onEdit, onCheckStock }: WishCardProps) {
   const updateItem = useWishStore((s) => s.updateItem);
   const deleteItem = useWishStore((s) => s.deleteItem);
 
@@ -34,6 +35,9 @@ export default function WishCard({ item, onEdit }: WishCardProps) {
             {item.name}
           </button>
           <div className="flex items-center flex-shrink-0">
+            <IconButton label="매장 재고 확인" onClick={onCheckStock}>
+              🏪
+            </IconButton>
             <IconButton label="수정" onClick={onEdit}>
               ✎
             </IconButton>
