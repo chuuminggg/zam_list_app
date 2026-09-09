@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ProductResult, StockProviderId, StockResult } from '../../../shared/api';
 import { checkStock } from '../../api/client';
+import { getStockLink } from '../../constants/stock';
 import { useApiRequest } from '../../hooks/useApiRequest';
 import { useStockPrefsStore } from '../../stores/stockPrefsStore';
 import { useWishStore } from '../../stores/wishStore';
@@ -25,12 +26,14 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
   const savedStoreQuery = useStockPrefsStore((s) => s.storeQuery);
   const setStoreQuery = useStockPrefsStore((s) => s.setStoreQuery);
 
-  const [provider, setProvider] = useState<StockProviderId>(item.stockLink?.provider ?? 'daiso');
+  const [provider, setProvider] = useState<StockProviderId>(
+    item.stockLink?.provider ?? item.source?.provider ?? 'daiso'
+  );
   const [relinking, setRelinking] = useState(false);
   const [storeInput, setStoreInput] = useState(savedStoreQuery[provider] ?? '');
   const stock = useApiRequest<StockResult>();
 
-  const link = item.stockLink?.provider === provider ? item.stockLink : undefined;
+  const link = getStockLink(item, provider);
   const showPicker = !link || relinking;
 
   const changeProvider = (next: StockProviderId) => {

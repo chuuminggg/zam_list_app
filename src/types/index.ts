@@ -11,7 +11,13 @@ export interface Todo {
 
 export type TodoFilter = 'all' | 'active' | 'done';
 
-/** 매장 재고 확인용으로 연결한 외부 상품 */
+/** 상품 검색으로 담은 항목의 원본 상품 */
+export interface ProductSource {
+  provider: StockProviderId;
+  externalId: string;
+}
+
+/** 매장 재고 확인용으로 연결한 외부 상품 (직접 추가한 항목에 연결할 때 사용) */
 export interface StockLink {
   provider: StockProviderId;
   productId: string;
@@ -28,6 +34,7 @@ export interface WishItem {
   status: 'want' | 'bought' | 'dropped';
   category: string;
   createdAt: string;
+  source?: ProductSource;
   stockLink?: StockLink;
 }
 
