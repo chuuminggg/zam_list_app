@@ -1,9 +1,12 @@
 import Badge from '../common/Badge';
 import IconButton from '../common/IconButton';
 import Select from '../common/Select';
+import { STOCK_PROVIDER_LABEL } from '../../constants/stock';
 import { STATUSES, STATUS_LABEL, STATUS_TONE } from '../../constants/wish';
 import { useWishStore } from '../../stores/wishStore';
 import type { WishItem } from '../../types';
+
+const SOURCE_TONE = 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
 
 interface WishCardProps {
   item: WishItem;
@@ -14,6 +17,7 @@ interface WishCardProps {
 export default function WishCard({ item, onEdit, onCheckStock }: WishCardProps) {
   const updateItem = useWishStore((s) => s.updateItem);
   const deleteItem = useWishStore((s) => s.deleteItem);
+  const sourceLabel = item.source ? STOCK_PROVIDER_LABEL[item.source.provider] : undefined;
 
   return (
     <li className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex gap-3 transition-colors hover:border-gray-300 dark:hover:border-gray-600 animate-fade-in">
@@ -48,7 +52,8 @@ export default function WishCard({ item, onEdit, onCheckStock }: WishCardProps) 
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-1.5">
           <Badge tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</Badge>
-          {item.category && <Badge>{item.category}</Badge>}
+          {item.source && <Badge tone={SOURCE_TONE}>{STOCK_PROVIDER_LABEL[item.source.provider]}</Badge>}
+          {item.category && item.category !== sourceLabel && <Badge>{item.category}</Badge>}
           {item.price != null && (
             <span className="text-xs text-gray-500 dark:text-gray-400">
               ₩{item.price.toLocaleString()}
@@ -65,7 +70,7 @@ export default function WishCard({ item, onEdit, onCheckStock }: WishCardProps) 
             rel="noopener noreferrer"
             className="text-xs text-purple-600 dark:text-purple-400 hover:underline mt-1 block truncate"
           >
-            링크 열기
+            {sourceLabel ? `${sourceLabel}에서 보기` : '링크 열기'}
           </a>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Button from '../components/common/Button';
+import ProductSearchModal from '../components/shopping/ProductSearchModal';
 import StockCheckModal from '../components/shopping/StockCheckModal';
 import WishFilterBar from '../components/wishlist/WishFilterBar';
 import WishForm from '../components/wishlist/WishForm';
@@ -15,6 +16,7 @@ export default function WishlistPage() {
   const filter = useWishStore((s) => s.filter);
   const sort = useWishStore((s) => s.sort);
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   // 모달 안에서 항목이 갱신(stockLink)되므로 스냅샷 대신 id로 최신 항목을 찾는다.
   const [stockTargetId, setStockTargetId] = useState<string | null>(null);
   const stockItem = items.find((i) => i.id === stockTargetId);
@@ -39,9 +41,14 @@ export default function WishlistPage() {
     <div className="max-w-2xl mx-auto p-4 space-y-6">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">위시리스트</h1>
-        <Button variant="accent" onClick={() => setFormTarget('new')}>
-          + 추가
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={() => setSearchOpen(true)}>
+            🔍 상품 검색
+          </Button>
+          <Button variant="accent" onClick={() => setFormTarget('new')}>
+            + 추가
+          </Button>
+        </div>
       </div>
 
       <WishFilterBar />
@@ -59,6 +66,8 @@ export default function WishlistPage() {
         item={editingItem}
         onClose={() => setFormTarget(null)}
       />
+
+      {searchOpen && <ProductSearchModal onClose={() => setSearchOpen(false)} />}
 
       {stockItem && (
         <StockCheckModal key={stockItem.id} item={stockItem} onClose={() => setStockTargetId(null)} />
