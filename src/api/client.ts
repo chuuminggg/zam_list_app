@@ -1,4 +1,11 @@
-import type { ApiErrorCode, ApiResponse, ProviderInfo } from '../../shared/api';
+import type {
+  ApiErrorCode,
+  ApiResponse,
+  ProductResult,
+  ProviderInfo,
+  StockProviderId,
+  StockResult,
+} from '../../shared/api';
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;
@@ -35,3 +42,9 @@ export async function apiGet<T>(path: string, params: Params = {}, signal?: Abor
 
 export const fetchProviders = (signal?: AbortSignal) =>
   apiGet<{ providers: ProviderInfo[] }>('providers', {}, signal).then((d) => d.providers);
+
+export const searchProducts = (provider: StockProviderId, q: string, signal?: AbortSignal) =>
+  apiGet<ProductResult[]>('search', { provider, q, limit: 10 }, signal);
+
+export const checkStock = (provider: StockProviderId, id: string, store: string, signal?: AbortSignal) =>
+  apiGet<StockResult>('stock', { provider, id, store }, signal);

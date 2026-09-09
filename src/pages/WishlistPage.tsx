@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Button from '../components/common/Button';
+import StockCheckModal from '../components/shopping/StockCheckModal';
 import WishFilterBar from '../components/wishlist/WishFilterBar';
 import WishForm from '../components/wishlist/WishForm';
 import WishList from '../components/wishlist/WishList';
@@ -14,6 +15,9 @@ export default function WishlistPage() {
   const filter = useWishStore((s) => s.filter);
   const sort = useWishStore((s) => s.sort);
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
+  // 모달 안에서 항목이 갱신(stockLink)되므로 스냅샷 대신 id로 최신 항목을 찾는다.
+  const [stockTargetId, setStockTargetId] = useState<string | null>(null);
+  const stockItem = items.find((i) => i.id === stockTargetId);
 
   const visibleItems = useMemo(
     () =>
@@ -41,7 +45,12 @@ export default function WishlistPage() {
       </div>
 
       <WishFilterBar />
-      <WishList items={visibleItems} filter={filter} onEdit={setFormTarget} />
+      <WishList
+        items={visibleItems}
+        filter={filter}
+        onEdit={setFormTarget}
+        onCheckStock={(item) => setStockTargetId(item.id)}
+      />
 
       {/* key로 대상이 바뀔 때마다 폼 상태를 새로 초기화한다. */}
       <WishForm
@@ -50,6 +59,10 @@ export default function WishlistPage() {
         item={editingItem}
         onClose={() => setFormTarget(null)}
       />
+
+      {stockItem && (
+        <StockCheckModal key={stockItem.id} item={stockItem} onClose={() => setStockTargetId(null)} />
+      )}
     </div>
   );
 }
