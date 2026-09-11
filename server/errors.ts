@@ -2,6 +2,7 @@ import type { ApiErrorCode } from '../shared/api.js';
 
 const STATUS_BY_CODE: Record<ApiErrorCode, number> = {
   BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
   NOT_FOUND: 404,
   NOT_CONFIGURED: 503,
   PROVIDER_DISABLED: 503,

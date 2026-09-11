@@ -1,8 +1,11 @@
+import { useEffect } from 'react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
+import SyncButton from './components/sync/SyncButton';
 import ThemeToggle from './components/common/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
 import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
+import { startSync } from './sync/sync';
 import './index.css';
 
 const NAV_BASE = 'px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors';
@@ -11,6 +14,7 @@ const NAV_IDLE = 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:
 
 export default function App() {
   useTheme();
+  useEffect(startSync, []);
 
   return (
     <BrowserRouter>
@@ -31,7 +35,8 @@ export default function App() {
             >
               위시리스트
             </NavLink>
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center">
+              <SyncButton />
               <ThemeToggle />
             </div>
           </nav>
