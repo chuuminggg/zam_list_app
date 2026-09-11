@@ -35,7 +35,13 @@ export default function devApi(): Plugin {
           for (const [key, value] of Object.entries(req.headers)) {
             if (typeof value === 'string') headers.set(key, value);
           }
-          const response: Response = await handler(new Request(url, { method, headers }));
+          let body: Buffer | undefined;
+          if (method !== 'GET' && method !== 'HEAD') {
+            const chunks: Buffer[] = [];
+            for await (const chunk of req) chunks.push(chunk as Buffer);
+            body = Buffer.concat(chunks);
+          }
+          const response: Response = await handler(new Request(url, { method, headers, body }));
 
           res.statusCode = response.status;
           response.headers.forEach((value, key) => res.setHeader(key, value));
