@@ -8,6 +8,16 @@
   --animate-pop-in: pop-in 0.16s ease-out;
 }
 
+/*
+ * 입력·선택 필드 기본 스타일. components 레이어에 두어야 사용처에서 넘긴
+ * w-auto, px-2 같은 유틸리티가 이 기본값을 덮어쓸 수 있다.
+ */
+@layer components {
+  .field {
+    @apply w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
