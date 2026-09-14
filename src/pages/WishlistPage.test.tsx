@@ -76,6 +76,28 @@ describe('WishlistPage', () => {
     expect(within(dialog).getByLabelText('매장 검색어')).toBeTruthy();
   });
 
+  it('매장 재고 확인은 다이소·올리브영에서 담은 항목에만 보인다', () => {
+    const base = { status: 'want' as const, createdAt: new Date().toISOString() };
+    useWishStore.setState({
+      items: [
+        { ...base, id: 'a', name: '수납함', category: '다이소', source: { provider: 'daiso', externalId: '1' } },
+        { ...base, id: 'b', name: '선크림', category: '올리브영', source: { provider: 'oliveyoung', externalId: '2' } },
+        { ...base, id: 'c', name: '우유', category: '마켓컬리', source: { provider: 'kurly', externalId: '3' } },
+        { ...base, id: 'd', name: '앨범', category: '번개장터', source: { provider: 'bunjang', externalId: '4' } },
+        { ...base, id: 'e', name: '직접 적은 항목', category: '기타' },
+      ],
+    });
+    render(<WishlistPage />);
+
+    const cardOf = (name: string) => screen.getByRole('button', { name }).closest('li')!;
+    for (const name of ['수납함', '선크림']) {
+      expect(within(cardOf(name)).queryByRole('button', { name: '매장 재고 확인' })).toBeTruthy();
+    }
+    for (const name of ['우유', '앨범', '직접 적은 항목']) {
+      expect(within(cardOf(name)).queryByRole('button', { name: '매장 재고 확인' })).toBeNull();
+    }
+  });
+
   it('검색으로 담은 항목은 카드에 쇼핑몰 배지를 보여준다', () => {
     useWishStore.setState({
       items: [
