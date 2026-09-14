@@ -2,6 +2,7 @@ import Badge from '../common/Badge';
 import IconButton from '../common/IconButton';
 import Select from '../common/Select';
 import { PROVIDER_LABEL } from '../../../shared/api';
+import { supportsStockCheck } from '../../constants/shopping';
 import { STATUSES, STATUS_LABEL, STATUS_TONE } from '../../constants/wish';
 import { useWishStore } from '../../stores/wishStore';
 import type { WishItem } from '../../types';
@@ -18,6 +19,8 @@ export default function WishCard({ item, onEdit, onCheckStock }: WishCardProps) 
   const updateItem = useWishStore((s) => s.updateItem);
   const deleteItem = useWishStore((s) => s.deleteItem);
   const sourceLabel = item.source ? PROVIDER_LABEL[item.source.provider] : undefined;
+  // 매장 재고는 다이소·올리브영에서 검색해 담은 상품만 확인할 수 있다.
+  const canCheckStock = item.source != null && supportsStockCheck(item.source.provider);
 
   return (
     <li className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex gap-3 transition-colors hover:border-gray-300 dark:hover:border-gray-600 animate-fade-in">
@@ -39,9 +42,11 @@ export default function WishCard({ item, onEdit, onCheckStock }: WishCardProps) 
             {item.name}
           </button>
           <div className="flex items-center flex-shrink-0">
-            <IconButton label="매장 재고 확인" onClick={onCheckStock}>
-              🏪
-            </IconButton>
+            {canCheckStock && (
+              <IconButton label="매장 재고 확인" onClick={onCheckStock}>
+                🏪
+              </IconButton>
+            )}
             <IconButton label="수정" onClick={onEdit}>
               ✎
             </IconButton>
