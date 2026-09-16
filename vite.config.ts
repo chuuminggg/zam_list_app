@@ -15,7 +15,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss(), devApi()],
     test: {
-      include: ['server/**/*.test.ts'],
+      // 화면 테스트는 파일 상단 `@vitest-environment jsdom` 주석으로 환경을 바꾼다.
+      include: ['server/**/*.test.ts', 'src/**/*.test.tsx'],
       environment: 'node',
     },
   }
