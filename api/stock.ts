@@ -8,5 +8,5 @@ export const GET = route(async (url) => {
   const id = requiredString(url, 'id', { max: 30, pattern: /^[A-Za-z0-9]+$/ });
   const store = requiredString(url, 'store', { min: 1, max: 50 });
   const limit = intParam(url, 'limit', { min: 1, max: 30, fallback: 10 });
-  return ok(await STOCK_ADAPTERS[provider].checkStock(id, store, limit), 60);
+  return ok(await STOCK_ADAPTERS[provider](id, store, limit), 60);
 });

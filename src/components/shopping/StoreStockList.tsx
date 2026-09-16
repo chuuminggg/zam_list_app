@@ -1,5 +1,5 @@
 import type { StockResult } from '../../../shared/api';
-import { STOCK_STATUS_TONE } from '../../constants/stock';
+import { STOCK_STATUS_TONE } from '../../constants/shopping';
 import Badge from '../common/Badge';
 
 export default function StoreStockList({ result }: { result: StockResult }) {
