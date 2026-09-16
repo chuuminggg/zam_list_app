@@ -3,6 +3,7 @@ import {
   SEARCH_PROVIDER_IDS,
   STOCK_PROVIDER_IDS,
   type ProviderId,
+  type ProviderInfo,
   type StockProviderId,
   type StockStatus,
 } from '../../shared/api';
@@ -23,6 +24,30 @@ export const STOCK_STATUS_TONE: Record<StockStatus, string> = {
   not_sold: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
   unknown: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
+
+export interface ProviderOption<T extends ProviderId> {
+  value: T;
+  label: string;
+  /** 서버에서 비활성화된 공급자 (환경변수 미설정 등) */
+  disabled?: boolean;
+  reason?: string;
+}
+
+/**
+ * 공급자 목록에 서버가 알려준 활성화 상태를 입힌다.
+ * 목록을 아직 못 받았으면(null) 전부 사용 가능한 것으로 둔다.
+ */
+export function withAvailability<T extends ProviderId>(
+  options: { value: T; label: string }[],
+  providers: ProviderInfo[] | null
+): ProviderOption<T>[] {
+  if (!providers) return options;
+  return options.map((option) => {
+    const info = providers.find((p) => p.id === option.value);
+    if (!info || info.enabled) return option;
+    return { ...option, disabled: true, reason: info.reason };
+  });
+}
 
 const STOCK_PROVIDER_SET = new Set<ProviderId>(STOCK_PROVIDER_IDS);
 

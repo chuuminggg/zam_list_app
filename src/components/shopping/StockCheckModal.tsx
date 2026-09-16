@@ -2,8 +2,9 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ProductResult, StockProviderId, StockResult } from '../../../shared/api';
 import { checkStock } from '../../api/client';
-import { getStockLink, STOCK_PROVIDERS, supportsStockCheck } from '../../constants/shopping';
+import { getStockLink, STOCK_PROVIDERS, supportsStockCheck, withAvailability } from '../../constants/shopping';
 import { useApiRequest } from '../../hooks/useApiRequest';
+import { useProviders } from '../../hooks/useProviders';
 import { useStockPrefsStore } from '../../stores/stockPrefsStore';
 import { useWishStore } from '../../stores/wishStore';
 import type { WishItem } from '../../types';
@@ -35,6 +36,8 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
   const [relinking, setRelinking] = useState(false);
   const [storeInput, setStoreInput] = useState(savedStoreQuery[provider] ?? '');
   const stock = useApiRequest<StockResult>();
+  const providers = useProviders();
+  const options = withAvailability(STOCK_PROVIDERS, providers);
 
   const link = getStockLink(item, provider);
   const showPicker = !link || relinking;
@@ -64,7 +67,7 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
 
   return (
     <Modal open title="매장 재고 확인" onClose={onClose}>
-      <ProviderToggle value={provider} options={STOCK_PROVIDERS} onChange={changeProvider} />
+      <ProviderToggle value={provider} options={options} onChange={changeProvider} />
 
       <section className="space-y-2">
         <h3 className={SECTION_TITLE}>1. 상품</h3>
