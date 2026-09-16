@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { ProductResult, StockProviderId } from '../../../shared/api';
-import { STOCK_PROVIDER_LABEL } from '../../constants/stock';
+import { PROVIDER_LABEL, type ProductResult, type SearchProviderId } from '../../../shared/api';
+import { SEARCH_PROVIDERS } from '../../constants/shopping';
 import { useWishStore } from '../../stores/wishStore';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
@@ -14,7 +14,7 @@ interface ProductSearchModalProps {
 export default function ProductSearchModal({ onClose }: ProductSearchModalProps) {
   const items = useWishStore((s) => s.items);
   const addItem = useWishStore((s) => s.addItem);
-  const [provider, setProvider] = useState<StockProviderId>('daiso');
+  const [provider, setProvider] = useState<SearchProviderId>('daiso');
   const [addedCount, setAddedCount] = useState(0);
 
   const addedIds = useMemo(
@@ -32,7 +32,7 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
       url: product.url,
       price: product.price,
       imageUrl: product.imageUrl,
-      category: STOCK_PROVIDER_LABEL[provider],
+      category: PROVIDER_LABEL[provider],
       status: 'want',
       source: { provider, externalId: product.externalId },
     });
@@ -41,7 +41,7 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
 
   return (
     <Modal open title="상품 검색해서 담기" onClose={onClose}>
-      <ProviderToggle value={provider} onChange={setProvider} />
+      <ProviderToggle value={provider} options={SEARCH_PROVIDERS} onChange={setProvider} />
       {/* 쇼핑몰이 바뀌면 검색어·결과를 새로 시작한다. */}
       <ProductPicker
         key={provider}

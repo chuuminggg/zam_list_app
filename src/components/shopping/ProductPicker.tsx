@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
-import type { ProductResult, StockProviderId } from '../../../shared/api';
+import type { ProductResult, SearchProviderId } from '../../../shared/api';
 import { searchProducts } from '../../api/client';
 import { useApiRequest } from '../../hooks/useApiRequest';
 import Badge from '../common/Badge';
@@ -8,7 +8,7 @@ import Button from '../common/Button';
 import Input from '../common/Input';
 
 interface ProductPickerProps {
-  provider: StockProviderId;
+  provider: SearchProviderId;
   initialQuery: string;
   onSelect: (product: ProductResult) => void;
   /** 이미 선택된(담긴) 상품 ID. 해당 행은 비활성화된다. */

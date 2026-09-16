@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ProductResult, StockProviderId, StockResult } from '../../../shared/api';
 import { checkStock } from '../../api/client';
-import { getStockLink } from '../../constants/stock';
+import { getStockLink, STOCK_PROVIDERS, supportsStockCheck } from '../../constants/shopping';
 import { useApiRequest } from '../../hooks/useApiRequest';
 import { useStockPrefsStore } from '../../stores/stockPrefsStore';
 import { useWishStore } from '../../stores/wishStore';
@@ -26,8 +26,11 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
   const savedStoreQuery = useStockPrefsStore((s) => s.storeQuery);
   const setStoreQuery = useStockPrefsStore((s) => s.setStoreQuery);
 
+  // 컬리처럼 재고 확인을 지원하지 않는 곳에서 담은 항목은 기본값(다이소)에서 시작한다.
+  const sourceProvider =
+    item.source && supportsStockCheck(item.source.provider) ? item.source.provider : undefined;
   const [provider, setProvider] = useState<StockProviderId>(
-    item.stockLink?.provider ?? item.source?.provider ?? 'daiso'
+    item.stockLink?.provider ?? sourceProvider ?? 'daiso'
   );
   const [relinking, setRelinking] = useState(false);
   const [storeInput, setStoreInput] = useState(savedStoreQuery[provider] ?? '');
@@ -61,7 +64,7 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
 
   return (
     <Modal open title="매장 재고 확인" onClose={onClose}>
-      <ProviderToggle value={provider} onChange={changeProvider} />
+      <ProviderToggle value={provider} options={STOCK_PROVIDERS} onChange={changeProvider} />
 
       <section className="space-y-2">
         <h3 className={SECTION_TITLE}>1. 상품</h3>

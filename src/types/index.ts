@@ -1,4 +1,4 @@
-import type { StockProviderId } from '../../shared/api';
+import type { SearchProviderId, StockProviderId } from '../../shared/api';
 
 export interface Todo {
   id: string;
@@ -13,7 +13,7 @@ export type TodoFilter = 'all' | 'active' | 'done';
 
 /** 상품 검색으로 담은 항목의 원본 상품 */
 export interface ProductSource {
-  provider: StockProviderId;
+  provider: SearchProviderId;
   externalId: string;
 }
 

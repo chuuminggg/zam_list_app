@@ -3,6 +3,7 @@ import type {
   ApiResponse,
   ProductResult,
   ProviderInfo,
+  SearchProviderId,
   StockProviderId,
   StockResult,
 } from '../../shared/api';
@@ -43,7 +44,7 @@ export async function apiGet<T>(path: string, params: Params = {}, signal?: Abor
 export const fetchProviders = (signal?: AbortSignal) =>
   apiGet<{ providers: ProviderInfo[] }>('providers', {}, signal).then((d) => d.providers);
 
-export const searchProducts = (provider: StockProviderId, q: string, signal?: AbortSignal) =>
+export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal) =>
   apiGet<ProductResult[]>('search', { provider, q, limit: 10 }, signal);
 
 export const checkStock = (provider: StockProviderId, id: string, store: string, signal?: AbortSignal) =>

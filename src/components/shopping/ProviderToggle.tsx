@@ -1,24 +1,23 @@
-import type { StockProviderId } from '../../../shared/api';
-import { STOCK_PROVIDERS } from '../../constants/stock';
 import Button from '../common/Button';
 
-interface ProviderToggleProps {
-  value: StockProviderId;
-  onChange: (provider: StockProviderId) => void;
+interface ProviderToggleProps<T extends string> {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (provider: T) => void;
 }
 
-export default function ProviderToggle({ value, onChange }: ProviderToggleProps) {
+export default function ProviderToggle<T extends string>({ value, options, onChange }: ProviderToggleProps<T>) {
   return (
-    <div className="flex gap-2" role="group" aria-label="쇼핑몰 선택">
-      {STOCK_PROVIDERS.map(({ value: provider, label }) => (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="쇼핑몰 선택">
+      {options.map((option) => (
         <Button
-          key={provider}
+          key={option.value}
           size="sm"
-          variant={value === provider ? 'toggle-active' : 'toggle'}
-          aria-pressed={value === provider}
-          onClick={() => onChange(provider)}
+          variant={value === option.value ? 'toggle-active' : 'toggle'}
+          aria-pressed={value === option.value}
+          onClick={() => onChange(option.value)}
         >
-          {label}
+          {option.label}
         </Button>
       ))}
     </div>

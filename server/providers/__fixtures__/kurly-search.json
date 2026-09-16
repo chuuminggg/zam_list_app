@@ -1,0 +1,44 @@
+{
+  "success": true,
+  "data": {
+    "topSections": [
+      {
+        "view": { "sectionCode": "RELATED_KEYWORD", "version": "v1" },
+        "data": { "items": ["저지방우유", "계란"] }
+      }
+    ],
+    "listSections": [
+      {
+        "view": { "sectionCode": "PRODUCT_LIST", "version": "v1" },
+        "data": {
+          "items": [
+            {
+              "no": 5063110,
+              "name": "[연세우유 x 마켓컬리] 전용목장우유 900mL",
+              "shortDescription": "가격, 퀄리티 모두 만족스러운 1A등급 우유",
+              "listImageUrl": "https://product-image.kurly.com/product/image/320bf4ca.jpg",
+              "salesPrice": 2780,
+              "discountedPrice": null,
+              "discountRate": 0.0,
+              "isSoldOut": false,
+              "deliveryTypeNames": ["샛별배송"],
+              "tags": [{ "code": "1", "name": "Kurly Only", "type": "KURLY_ONLY" }],
+              "reviewCount": "9,999+"
+            },
+            {
+              "no": 1000316128,
+              "name": "할인 품절 상품",
+              "listImageUrl": "https://product-image.kurly.com/product/image/5774eddb.jpg",
+              "salesPrice": 10000,
+              "discountedPrice": 7000,
+              "discountRate": 30.0,
+              "isSoldOut": true,
+              "deliveryTypeNames": ["샛별배송"],
+              "tags": []
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

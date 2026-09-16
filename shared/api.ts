@@ -30,6 +30,24 @@ export type ProviderId =
   | 'oliveyoung'
   | 'cinema';
 
+export const PROVIDER_LABEL: Record<ProviderId, string> = {
+  kurly: '마켓컬리',
+  daangn: '당근',
+  ohou: '오늘의집',
+  bunjang: '번개장터',
+  coupang: '쿠팡',
+  daiso: '다이소',
+  oliveyoung: '올리브영',
+  cinema: '영화관',
+};
+
+/** 상품 검색을 지원하는 공급자 (탭 순서 = 이 배열 순서) */
+export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly'] as const;
+export type SearchProviderId = (typeof SEARCH_PROVIDER_IDS)[number];
+
+/** 매장 재고 확인을 지원하는 공급자 */
+export const STOCK_PROVIDER_IDS = ['daiso', 'oliveyoung'] as const;
+
 export interface ProviderInfo {
   id: ProviderId;
   label: string;
@@ -52,8 +70,7 @@ export interface ProductResult {
   badges: string[];
 }
 
-/** 매장 재고 확인을 지원하는 공급자 */
-export type StockProviderId = Extract<ProviderId, 'daiso' | 'oliveyoung'>;
+export type StockProviderId = (typeof STOCK_PROVIDER_IDS)[number];
 
 export interface StoreResult {
   provider: StockProviderId;
