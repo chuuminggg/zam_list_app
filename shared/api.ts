@@ -42,7 +42,7 @@ export const PROVIDER_LABEL: Record<ProviderId, string> = {
 };
 
 /** 상품 검색을 지원하는 공급자 (탭 순서 = 이 배열 순서) */
-export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly'] as const;
+export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly', 'bunjang'] as const;
 export type SearchProviderId = (typeof SEARCH_PROVIDER_IDS)[number];
 
 /** 매장 재고 확인을 지원하는 공급자 */
