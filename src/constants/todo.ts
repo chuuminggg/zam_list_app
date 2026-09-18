@@ -1,21 +1,19 @@
-import type { Todo, TodoFilter } from '../types';
+/** 카테고리 색상 팔레트 */
+export const CATEGORY_COLORS = [
+  '#ef4444',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#3b82f6',
+  '#6366f1',
+  '#a855f7',
+  '#ec4899',
+  '#64748b',
+] as const;
 
-export const PRIORITIES = ['high', 'medium', 'low'] as const;
+/** 카테고리가 없거나 지워진 할 일에 쓰는 색 */
+export const UNCATEGORIZED_COLOR = '#9ca3af';
+export const UNCATEGORIZED_NAME = '미분류';
 
-export const PRIORITY_LABEL: Record<Todo['priority'], string> = {
-  high: '높음',
-  medium: '보통',
-  low: '낮음',
-};
-
-export const PRIORITY_TONE: Record<Todo['priority'], string> = {
-  high: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-  low: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
-};
-
-export const TODO_FILTERS: { value: TodoFilter; label: string }[] = [
-  { value: 'all', label: '전체' },
-  { value: 'active', label: '진행 중' },
-  { value: 'done', label: '완료' },
-];
+export const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'] as const;

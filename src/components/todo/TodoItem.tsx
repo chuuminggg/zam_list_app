@@ -1,113 +1,138 @@
-import { useState } from 'react';
-import Badge from '../common/Badge';
-import Button from '../common/Button';
+import { useEffect, useRef, useState } from 'react';
 import IconButton from '../common/IconButton';
-import Input from '../common/Input';
-import Select from '../common/Select';
-import { PRIORITIES, PRIORITY_LABEL, PRIORITY_TONE } from '../../constants/todo';
 import { useTodoStore } from '../../stores/todoStore';
 import type { Todo } from '../../types';
+import { addDays, todayKey } from '../../utils/date';
+import { todoDate } from '../../utils/todo';
 
 interface TodoItemProps {
   todo: Todo;
+  color: string;
 }
 
-export default function TodoItem({ todo }: TodoItemProps) {
+const MENU_ITEM =
+  'w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700';
+
+export default function TodoItem({ todo, color }: TodoItemProps) {
   const { toggleTodo, updateTodo, deleteTodo } = useTodoStore();
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({
-    title: todo.title,
-    category: todo.category,
-    priority: todo.priority,
-  });
+  const [draft, setDraft] = useState(todo.title);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
+
+  const date = todoDate(todo);
+  const today = todayKey();
 
   const startEdit = () => {
-    setDraft({ title: todo.title, category: todo.category, priority: todo.priority });
+    setDraft(todo.title);
     setEditing(true);
+    setMenuOpen(false);
   };
 
   const save = () => {
-    if (!draft.title.trim()) return;
-    updateTodo(todo.id, {
-      title: draft.title.trim(),
-      category: draft.category.trim(),
-      priority: draft.priority,
-    });
+    const title = draft.trim();
+    if (title && title !== todo.title) updateTodo(todo.id, { title });
     setEditing(false);
   };
 
-  if (editing) {
-    return (
-      <li className="bg-white dark:bg-gray-800 rounded-xl px-4 py-3 shadow-sm border border-indigo-300 dark:border-indigo-700 space-y-2">
-        <Input
-          type="text"
-          autoFocus
-          value={draft.title}
-          onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') save();
-            if (e.key === 'Escape') setEditing(false);
-          }}
-        />
-        <div className="flex gap-2 flex-wrap">
-          <Input
-            type="text"
-            placeholder="카테고리"
-            value={draft.category}
-            onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-            className="flex-1 min-w-24 text-sm"
-          />
-          <Select
-            value={draft.priority}
-            onChange={(e) =>
-              setDraft((d) => ({ ...d, priority: e.target.value as Todo['priority'] }))
-            }
-            className="w-auto text-sm"
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </Select>
-          <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>
-            취소
-          </Button>
-          <Button size="sm" onClick={save} disabled={!draft.title.trim()}>
-            저장
-          </Button>
-        </div>
-      </li>
-    );
-  }
+  const moveTo = (next: string) => {
+    updateTodo(todo.id, { date: next });
+    setMenuOpen(false);
+  };
 
   return (
-    <li className="flex items-center gap-2 sm:gap-3 bg-white dark:bg-gray-800 rounded-xl px-3 sm:px-4 py-3 shadow-sm border border-gray-200 dark:border-gray-700 transition-colors hover:border-gray-300 dark:hover:border-gray-600 animate-fade-in">
-      <input
-        type="checkbox"
-        checked={todo.done}
-        onChange={() => toggleTodo(todo.id)}
-        aria-label={`${todo.title} 완료 토글`}
-        className="w-5 h-5 rounded accent-indigo-600 cursor-pointer flex-shrink-0"
-      />
+    <li className="group flex items-center gap-3 py-1.5 animate-fade-in">
       <button
         type="button"
-        onClick={startEdit}
-        className={`flex-1 text-left truncate transition-colors ${
-          todo.done ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white'
-        }`}
+        role="checkbox"
+        aria-checked={todo.done}
+        aria-label={`${todo.title} 완료`}
+        onClick={() => toggleTodo(todo.id)}
+        className="w-5 h-5 flex-shrink-0 rounded-full border-2 flex items-center justify-center text-[11px] leading-none text-white transition-colors"
+        style={{ borderColor: color, backgroundColor: todo.done ? color : 'transparent' }}
       >
-        {todo.title}
+        {todo.done && '✓'}
       </button>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {todo.category && <Badge>{todo.category}</Badge>}
-        <Badge tone={PRIORITY_TONE[todo.priority]}>{PRIORITY_LABEL[todo.priority]}</Badge>
-        <IconButton label="수정" onClick={startEdit}>
-          ✎
+
+      {editing ? (
+        <input
+          type="text"
+          autoFocus
+          aria-label="할 일 수정"
+          value={draft}
+          maxLength={500}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) save();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          className="flex-1 min-w-0 bg-transparent border-b border-gray-300 dark:border-gray-600 py-0.5 text-gray-900 dark:text-white focus:outline-none focus:border-indigo-500"
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={startEdit}
+          className={`flex-1 min-w-0 text-left break-words transition-colors ${
+            todo.done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'
+          }`}
+        >
+          {todo.title}
+        </button>
+      )}
+
+      <div ref={menuRef} className="relative flex-shrink-0">
+        <IconButton
+          label={`${todo.title} 메뉴`}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((v) => !v)}
+          className="px-1.5 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 aria-expanded:opacity-100"
+        >
+          ⋯
         </IconButton>
-        <IconButton label="삭제" tone="danger" onClick={() => deleteTodo(todo.id)}>
-          ✕
-        </IconButton>
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full mt-1 z-30 w-36 py-1 rounded-xl bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700 animate-pop-in"
+          >
+            <button type="button" role="menuitem" className={MENU_ITEM} onClick={startEdit}>
+              수정
+            </button>
+            {date !== today && (
+              <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => moveTo(today)}>
+                오늘 하기
+              </button>
+            )}
+            <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => moveTo(addDays(date, 1))}>
+              내일 하기
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={`${MENU_ITEM} !text-red-500`}
+              onClick={() => deleteTodo(todo.id)}
+            >
+              삭제
+            </button>
+          </div>
+        )}
       </div>
     </li>
   );

@@ -132,6 +132,31 @@ describe('/api/data', () => {
     ]);
   });
 
+  it('카테고리를 저장하고 형식이 틀린 색상은 거부한다', async () => {
+    setup();
+    const category = { id: 'c1', name: '공부', color: '#3b82f6', order: 0, createdAt: '2026-09-19' };
+    expect((await call(POST, 'collection=categories', { body: { items: [category] } })).status).toBe(200);
+    expect((await call(GET, 'collection=categories')).json.data.items).toEqual([category]);
+
+    const bad = await call(POST, 'collection=categories', { body: { items: [{ ...category, color: 'red' }] } });
+    expect(bad.status).toBe(400);
+  });
+
+  it('할 일의 날짜·카테고리 id를 저장하고, 예전 형식 항목도 받는다', async () => {
+    setup();
+    const current = { ...todo('a', '2026-09-01T00:00:00Z'), date: '2026-09-20', categoryId: 'c1', category: '' };
+    const legacy = { id: 'b', title: '예전', done: false, createdAt: '2026-09-02T00:00:00Z' };
+    await call(POST, 'collection=todos', { body: { items: [current, legacy] } });
+    const res = await call(GET, 'collection=todos');
+    expect(res.json.data.items).toEqual([
+      current,
+      { ...legacy, priority: 'medium', category: '' },
+    ]);
+
+    const bad = await call(POST, 'collection=todos', { body: { items: [{ ...current, date: '9/20' }] } });
+    expect(bad.status).toBe(400);
+  });
+
   it('키가 없으면 401, 형식이 틀린 항목은 400', async () => {
     setup();
     expect((await call(GET, 'collection=todos', { key: null })).status).toBe(401);
