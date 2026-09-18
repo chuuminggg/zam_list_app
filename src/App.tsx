@@ -20,7 +20,7 @@ export default function App() {
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors">
         <header className="sticky top-0 z-40 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-800 transition-colors">
-          <nav className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-1 sm:gap-2">
+          <nav className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-1 sm:gap-2">
             <span className="font-bold text-gray-900 dark:text-white mr-1 sm:mr-3">ZAM List</span>
             <NavLink
               to="/"

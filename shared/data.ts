@@ -7,8 +7,25 @@ export interface Todo {
   id: string;
   title: string;
   done: boolean;
+  /** 할 일 날짜 (로컬 기준 YYYY-MM-DD). 예전 항목은 없을 수 있다. */
+  date?: string;
+  /** 소속 카테고리 id. 없거나 ''이면 미분류 */
+  categoryId?: string;
+  /** 예전 UI의 우선순위. 지금은 표시하지 않고 호환용으로만 둔다. */
   priority: 'high' | 'medium' | 'low';
+  /** 예전 UI의 자유 입력 카테고리 이름. 새 항목은 ''이고 categoryId를 쓴다. */
   category: string;
+  createdAt: string;
+}
+
+/** 할 일 카테고리 */
+export interface Category {
+  id: string;
+  name: string;
+  /** #rrggbb */
+  color: string;
+  /** 표시 순서 (오름차순) */
+  order: number;
   createdAt: string;
 }
 
@@ -39,12 +56,13 @@ export interface WishItem {
   stockLink?: StockLink;
 }
 
-export const COLLECTION_IDS = ['todos', 'wishlist'] as const;
+export const COLLECTION_IDS = ['todos', 'wishlist', 'categories'] as const;
 export type CollectionId = (typeof COLLECTION_IDS)[number];
 
 export interface CollectionItem {
   todos: Todo;
   wishlist: WishItem;
+  categories: Category;
 }
 
 /**

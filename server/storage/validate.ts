@@ -1,5 +1,5 @@
 import { SEARCH_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
-import type { CollectionId, CollectionItem, Todo, WishItem } from '../../shared/data.js';
+import type { Category, CollectionId, CollectionItem, Todo, WishItem } from '../../shared/data.js';
 import { ApiException } from '../errors.js';
 
 /**
@@ -10,6 +10,8 @@ import { ApiException } from '../errors.js';
 type Obj = Record<string, unknown>;
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 function invalid(field: string): never {
   throw new ApiException('BAD_REQUEST', `항목의 '${field}' 값이 올바르지 않습니다.`);
@@ -47,15 +49,38 @@ function compact<T extends object>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
 }
 
+function optPattern(obj: Obj, field: string, pattern: RegExp): string | undefined {
+  const value = optStr(obj, field, 64);
+  if (value !== undefined && !pattern.test(value)) invalid(field);
+  return value;
+}
+
 export function parseTodo(value: unknown): Todo {
   const obj = asObject(value, 'todo');
   if (typeof obj.done !== 'boolean') invalid('done');
-  return {
+  return compact({
     id: id(obj),
     title: str(obj, 'title', 500, 1),
     done: obj.done,
-    priority: oneOf(obj, 'priority', ['high', 'medium', 'low'] as const),
-    category: str(obj, 'category', 50),
+    date: optPattern(obj, 'date', DATE_PATTERN),
+    categoryId: optPattern(obj, 'categoryId', ID_PATTERN),
+    priority: obj.priority == null ? 'medium' : oneOf(obj, 'priority', ['high', 'medium', 'low'] as const),
+    category: optStr(obj, 'category', 50) ?? '',
+    createdAt: str(obj, 'createdAt', 40, 1),
+  });
+}
+
+export function parseCategory(value: unknown): Category {
+  const obj = asObject(value, 'category');
+  const order = obj.order;
+  if (typeof order !== 'number' || !Number.isFinite(order)) invalid('order');
+  const color = str(obj, 'color', 7);
+  if (!COLOR_PATTERN.test(color)) invalid('color');
+  return {
+    id: id(obj),
+    name: str(obj, 'name', 50, 1),
+    color,
+    order,
     createdAt: str(obj, 'createdAt', 40, 1),
   };
 }
@@ -99,6 +124,7 @@ export function parseWishItem(value: unknown): WishItem {
 export const PARSERS: { [C in CollectionId]: (value: unknown) => CollectionItem[C] } = {
   todos: parseTodo,
   wishlist: parseWishItem,
+  categories: parseCategory,
 };
 
 /** `{ items: [...] }` 요청 본문을 검증한다. 같은 id가 여러 번 오면 마지막 것을 쓴다. */

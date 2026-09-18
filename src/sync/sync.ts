@@ -6,6 +6,7 @@ import {
   replaceCollection,
   upsertItems,
 } from '../api/client';
+import { useCategoryStore } from '../stores/categoryStore';
 import { useSyncStore } from '../stores/syncStore';
 import { useTodoStore } from '../stores/todoStore';
 import { useWishStore } from '../stores/wishStore';
@@ -45,7 +46,17 @@ const wishBinding: Binding<'wishlist'> = {
     }),
 };
 
-const BINDINGS = [todosBinding, wishBinding] as const;
+const categoryBinding: Binding<'categories'> = {
+  collection: 'categories',
+  get: () => useCategoryStore.getState().categories,
+  set: (categories) => useCategoryStore.setState({ categories }),
+  subscribe: (listener) =>
+    useCategoryStore.subscribe((s, p) => {
+      if (s.categories !== p.categories) listener(s.categories, p.categories);
+    }),
+};
+
+const BINDINGS = [todosBinding, wishBinding, categoryBinding] as const;
 
 const setSync = useSyncStore.setState;
 const errorMessage = (error: unknown) =>
