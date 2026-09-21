@@ -100,6 +100,8 @@ export interface StockResult {
   productId: string;
   checkedAt: string;
   stores: StoreStock[];
+  /** 매장별 재고를 못 구했을 때 대신 보여줄 상품 단위 재고 요약 */
+  summary?: { status: StockStatus; label: string };
   /** 데이터 한계 등 사용자에게 알릴 안내 */
   notice?: string;
 }

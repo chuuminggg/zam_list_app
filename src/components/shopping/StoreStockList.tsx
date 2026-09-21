@@ -10,7 +10,12 @@ export default function StoreStockList({ result }: { result: StockResult }) {
           {result.notice}
         </p>
       )}
-      {result.stores.length === 0 ? (
+      {result.stores.length === 0 && result.summary ? (
+        <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-gray-700 dark:text-gray-300">전체 매장 기준</p>
+          <Badge tone={STOCK_STATUS_TONE[result.summary.status]}>{result.summary.label}</Badge>
+        </div>
+      ) : result.stores.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">해당 키워드로 찾은 매장이 없어요.</p>
       ) : (
         <ul className="space-y-1.5 max-h-72 overflow-y-auto">
