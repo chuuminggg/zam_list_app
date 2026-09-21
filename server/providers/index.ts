@@ -3,11 +3,9 @@ import { ApiException } from '../errors.js';
 import { oneOf } from '../respond.js';
 
 /** 모두 설정되어 있어야 공급자가 활성화되는 환경변수 */
-const REQUIRED_ENV: Partial<Record<ProviderId, string[]>> = {
-  // 올리브영 내부 API는 봇 차단이 있어 Zyte 경유 호출 필요.
-  // 쿠팡은 파트너스 키가 없으면 k-skill-proxy로 fallback 하므로 필수 환경변수가 없다.
-  oliveyoung: ['ZYTE_API_KEY'],
-};
+// 올리브영은 브라우저 헤더로 직접 호출하고, 쿠팡은 파트너스 키가 없으면 k-skill-proxy로
+// fallback 하므로 현재 필수 환경변수가 있는 공급자는 없다.
+const REQUIRED_ENV: Partial<Record<ProviderId, string[]>> = {};
 
 const PROVIDER_IDS = Object.keys(PROVIDER_LABEL) as ProviderId[];
 

@@ -36,7 +36,7 @@ describe('WishlistPage', () => {
         data: {
           providers: [
             { id: 'daiso', label: '다이소', enabled: true },
-            { id: 'oliveyoung', label: '올리브영', enabled: false, reason: '환경변수 필요: ZYTE_API_KEY' },
+            { id: 'oliveyoung', label: '올리브영', enabled: false, reason: 'PROVIDERS_ENABLED에 포함되지 않음' },
           ],
         },
       })
@@ -48,7 +48,7 @@ describe('WishlistPage', () => {
     const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
     const oliveyoung = await within(dialog).findByRole('button', { name: /올리브영/ });
     expect(oliveyoung.hasAttribute('disabled')).toBe(true);
-    expect(within(dialog).getByText(/ZYTE_API_KEY/)).toBeTruthy();
+    expect(within(dialog).getByText(/PROVIDERS_ENABLED/)).toBeTruthy();
     // 사용 가능한 곳은 그대로 선택할 수 있다
     expect(within(dialog).getByRole('button', { name: '마켓컬리' }).hasAttribute('disabled')).toBe(false);
   });
