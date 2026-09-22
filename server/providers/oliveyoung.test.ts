@@ -2,58 +2,42 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   checkOliveyoungStock,
   parseOliveyoungProducts,
-  parseOliveyoungStockStores,
   resolveImageUrl,
   searchOliveyoungProducts,
 } from './oliveyoung.js';
 
-// daiso-mcp가 사용하는 필드명 기준으로 구성한 샘플.
+// mcp.aka.page /api/oliveyoung/products 실제 응답(2026-09-24)의 필드 기준 샘플.
 
 describe('parseOliveyoungProducts', () => {
-  it('상품 목록(원본 오타 serachList 포함)을 변환한다', () => {
+  it('호스팅 API 상품 목록을 변환한다', () => {
     const result = parseOliveyoungProducts({
-      serachList: [
+      products: [
         {
-          goodsNumber: 'A000000184228',
-          goodsName: '선크림 50ml',
-          imagePath: '10/0000/0018/A00000018422801ko.jpg',
-          priceToPay: 18900,
-          discountRate: 30,
+          goodsNumber: 'A000000201055',
+          goodsName: '롬앤 베러 댄 컨투어',
+          imageUrl: 'https://image.oliveyoung.co.kr/uploads/images/goods/10/0000/0020/A00000020105567ko.jpg?l=ko',
+          priceToPay: 20900,
+          discountRate: 12,
           o2oStockFlag: true,
+          o2oRemainQuantity: 0,
+          inStock: true,
         },
-        { goodsNumber: 'A000000111111', goodsName: '품절 상품', o2oStockFlag: false, o2oRemainQuantity: 0 },
+        { goodsNumber: 'A000000111111', goodsName: '품절 상품', o2oStockFlag: true, inStock: false },
+        { goodsNumber: 'A000000222222', goodsName: 'inStock 없는 항목', o2oRemainQuantity: 2 },
         { goodsName: '번호 없는 항목' },
       ],
     });
-    expect(result).toHaveLength(2);
+    expect(result).toHaveLength(3);
     expect(result[0]).toMatchObject({
-      externalId: 'A000000184228',
-      price: 18900,
+      externalId: 'A000000201055',
+      price: 20900,
       soldOut: false,
-      badges: ['30% 할인'],
-      url: 'https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo=A000000184228',
-      imageUrl: 'https://image.oliveyoung.co.kr/uploads/images/goods/10/0000/0018/A00000018422801ko.jpg',
+      badges: ['12% 할인'],
+      url: 'https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo=A000000201055',
+      imageUrl: 'https://image.oliveyoung.co.kr/uploads/images/goods/10/0000/0020/A00000020105567ko.jpg?l=ko',
     });
     expect(result[1]).toMatchObject({ soldOut: true, badges: ['매장 재고 없음'] });
-  });
-});
-
-describe('parseOliveyoungStockStores', () => {
-  it('판매 여부와 수량으로 상태를 정한다', () => {
-    const stores = parseOliveyoungStockStores({
-      storeList: [
-        { storeCode: 'D1', storeName: '명동본점', salesStoreYn: true, remainQuantity: 12 },
-        { storeCode: 'D2', storeName: '명동역점', salesStoreYn: true, remainQuantity: 0, o2oRemainQuantity: 3 },
-        { storeCode: 'D3', storeName: '을지로점', salesStoreYn: true, remainQuantity: 0 },
-        { storeCode: 'D4', storeName: '회현점', salesStoreYn: false },
-      ],
-    });
-    expect(stores.map((s) => [s.name, s.status, s.label])).toEqual([
-      ['명동본점', 'in_stock', '재고 9개 이상'],
-      ['명동역점', 'in_stock', '재고 3개'],
-      ['을지로점', 'out_of_stock', '품절'],
-      ['회현점', 'not_sold', '미판매'],
-    ]);
+    expect(result[2]).toMatchObject({ soldOut: false });
   });
 });
 
@@ -68,68 +52,55 @@ describe('resolveImageUrl', () => {
 describe('올리브영 호출', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  const ok = (data: unknown) => Response.json({ status: 'SUCCESS', data });
+  const ok = (products: unknown[]) => Response.json({ success: true, data: { products } });
   const mockFetch = (...responses: Response[]) => {
     const fn = vi.spyOn(globalThis, 'fetch');
     for (const r of responses) fn.mockResolvedValueOnce(r);
     return fn;
   };
 
-  it('키 없이 공식 API를 브라우저 헤더와 함께 직접 호출한다', async () => {
-    const fetch = mockFetch(ok({ serachList: [{ goodsNumber: 'A1', goodsName: '선크림', o2oStockFlag: true }] }));
+  it('호스팅 API를 경유해 상품을 검색한다', async () => {
+    const fetch = mockFetch(ok([{ goodsNumber: 'A1', goodsName: '선크림', inStock: true }]));
     const result = await searchOliveyoungProducts('선크림', 5);
 
     expect(result.map((p) => p.externalId)).toEqual(['A1']);
-    const [url, init] = fetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://www.oliveyoung.co.kr/oystore/api/stock/product-search-v3');
-    expect(init.redirect).toBe('manual');
-    expect(init.headers).toMatchObject({
-      'User-Agent': expect.stringContaining('Mozilla/5.0'),
-      Origin: 'https://www.oliveyoung.co.kr',
-      Referer: 'https://www.oliveyoung.co.kr/',
-      'Accept-Language': 'ko-KR,ko;q=0.9',
-      'X-Requested-With': 'XMLHttpRequest',
-    });
+    const url = new URL(fetch.mock.calls[0][0] as string);
+    expect(url.origin + url.pathname).toBe('https://mcp.aka.page/api/oliveyoung/products');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ keyword: '선크림', size: '5', includeSoldOut: 'true' });
   });
 
-  it('리다이렉트 응답은 따라가지 않고 오류로 처리한다', async () => {
-    mockFetch(new Response(null, { status: 302 }));
+  it('호스팅 API가 실패를 알리면 UPSTREAM_ERROR', async () => {
+    mockFetch(Response.json({ success: false, error: { code: 'X' } }));
     await expect(searchOliveyoungProducts('선크림', 5)).rejects.toMatchObject({ code: 'UPSTREAM_ERROR' });
   });
 
-  it('상세 조회가 되면 매장별 재고를 돌려준다', async () => {
+  it('호스팅 서버가 500이면 최대 3번까지 다시 시도한다', async () => {
     const fetch = mockFetch(
-      ok({ goodsInfo: { masterGoodsNumber: 'M1' } }),
-      ok({ storeList: [{ storeCode: 'D1', storeName: '강남점', salesStoreYn: true, remainQuantity: 3 }] }),
+      new Response('error', { status: 500 }),
+      new Response('error', { status: 500 }),
+      ok([{ goodsNumber: 'A1', inStock: true }]),
     );
-    const result = await checkOliveyoungStock('A1', '강남', 10);
-
-    expect(result.summary).toBeUndefined();
-    expect(result.stores.map((s) => s.label)).toEqual(['재고 3개']);
-    expect(JSON.parse(String((fetch.mock.calls[1][1] as RequestInit).body))).toMatchObject({ productId: 'M1' });
+    expect(await searchOliveyoungProducts('선크림', 5)).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
-  it('상세 조회가 막히면 상품 검색의 재고 여부로 대신 표시한다', async () => {
+  it('재고는 상품명으로 다시 검색해 같은 상품번호의 전체 매장 기준 재고를 보여준다', async () => {
     const fetch = mockFetch(
-      new Response('blocked', { status: 403 }),
-      ok({ serachList: [{ goodsNumber: 'A0' }, { goodsNumber: 'A1', o2oStockFlag: false, o2oRemainQuantity: 2 }] }),
+      ok([{ goodsNumber: 'A0', inStock: true }, { goodsNumber: 'A1', inStock: false }]),
     );
-    const result = await checkOliveyoungStock('A1', '강남', 10);
+    const result = await checkOliveyoungStock('A1', '강남', 10, '롬앤 틴트');
 
     expect(result.stores).toEqual([]);
-    expect(result.summary).toEqual({ status: 'in_stock', label: '매장 재고 있음' });
+    expect(result.summary).toEqual({ status: 'out_of_stock', label: '매장 재고 없음' });
     expect(result.notice).toContain('매장별 재고');
-    expect(JSON.parse(String((fetch.mock.calls[1][1] as RequestInit).body))).toMatchObject({ keyword: 'A1' });
+    expect(new URL(fetch.mock.calls[0][0] as string).searchParams.get('keyword')).toBe('롬앤 틴트');
   });
 
-  it('대체 조회도 실패하거나 상품이 없으면 확인 불가로 표시한다', async () => {
-    mockFetch(new Response('blocked', { status: 403 }), new Response('blocked', { status: 403 }));
-    const result = await checkOliveyoungStock('A1', '강남', 10);
-    expect(result.summary).toEqual({ status: 'unknown', label: '재고 확인 불가' });
-  });
-
-  it('상품 정보가 없으면 대체하지 않고 NOT_FOUND', async () => {
-    mockFetch(ok({ goodsInfo: {} }));
-    await expect(checkOliveyoungStock('A1', '강남', 10)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  it('상품명이 없거나 검색이 실패하면 확인 불가로 표시한다', async () => {
+    const fail = () => new Response('error', { status: 500 });
+    const fetch = mockFetch(fail(), fail(), fail());
+    expect((await checkOliveyoungStock('A1', '강남', 10)).summary).toEqual({ status: 'unknown', label: '재고 확인 불가' });
+    expect(fetch).not.toHaveBeenCalled();
+    expect((await checkOliveyoungStock('A1', '강남', 10, '틴트')).summary?.status).toBe('unknown');
   });
 });

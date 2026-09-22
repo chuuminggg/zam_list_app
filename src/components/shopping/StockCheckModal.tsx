@@ -62,7 +62,7 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
     const store = storeInput.trim();
     if (!link || !store) return;
     setStoreQuery(provider, store);
-    stock.run((signal) => checkStock(provider, link.productId, store, signal));
+    stock.run((signal) => checkStock(provider, link.productId, store, link.productName, signal));
   };
 
   return (

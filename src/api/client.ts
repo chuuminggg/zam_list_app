@@ -67,8 +67,13 @@ export const fetchProviders = (signal?: AbortSignal) =>
 export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal) =>
   apiGet<ProductResult[]>('search', { provider, q, limit: 10 }, signal);
 
-export const checkStock = (provider: StockProviderId, id: string, store: string, signal?: AbortSignal) =>
-  apiGet<StockResult>('stock', { provider, id, store }, signal);
+export const checkStock = (
+  provider: StockProviderId,
+  id: string,
+  store: string,
+  name: string,
+  signal?: AbortSignal,
+) => apiGet<StockResult>('stock', { provider, id, store, name: name.slice(0, 200) }, signal);
 
 const auth = (syncKey: string) => ({ Authorization: `Bearer ${syncKey}` });
 
