@@ -9,14 +9,18 @@ export const GET = route(async (_url, request) => {
 });
 
 /**
- * POST /api/auth  body: { username, password } — 로그인.
- * 처음 쓰는 아이디면 그 비밀번호로 계정을 만든다 (created: true).
+ * POST /api/auth  body: { username, password, create? } — 로그인.
+ * 처음 보는 아이디면 계정을 만들지 않고 { status: 'new' }로 답한다.
+ * 화면에서 확인받은 뒤 create: true로 다시 요청하면 그때 계정을 만든다 (created: true).
  */
 export const POST = route(async (_url, request) => {
   const body = await readJson(request, 4096);
-  const { username, password } = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
+  const { username, password, create } = (typeof body === 'object' && body !== null ? body : {}) as Record<
+    string,
+    unknown
+  >;
   const db = await requireDb();
-  return ok(await signIn(db, normalizeUsername(username), checkPassword(password)));
+  return ok(await signIn(db, normalizeUsername(username), checkPassword(password), create === true));
 });
 
 /** DELETE /api/auth — 로그아웃 (현재 세션 삭제) */

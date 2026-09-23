@@ -101,19 +101,22 @@ function SignInForm({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  /** 없는 아이디라 새로 만들지 확인받는 중 */
+  const [confirmNew, setConfirmNew] = useState<string | null>(null);
   const valid =
     USERNAME_PATTERN.test(username.trim().toLowerCase()) &&
     password.length >= PASSWORD_MIN &&
     password.length <= PASSWORD_MAX;
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const send = async (create: boolean) => {
     if (!valid || submitting) return;
     setSubmitting(true);
     setMessage(null);
     try {
-      await signIn(username.trim(), password);
-      setPassword('');
+      const result = await signIn(username.trim(), password, { create });
+      // 없는 아이디면 계정을 만들기 전에 한 번 확인받는다 (오타로 계정이 갈라지지 않도록).
+      if (result.status === 'new') setConfirmNew(username.trim().toLowerCase());
+      else setPassword('');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '로그인하지 못했어요.');
     } finally {
@@ -121,11 +124,39 @@ function SignInForm({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    void send(false);
+  };
+
+  if (confirmNew) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="font-semibold">{confirmNew}</span> 계정이 아직 없어요. 새로 만들까요?
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          이미 쓰던 계정이 있다면 아이디에 오타가 없는지 확인하세요. 계정을 새로 만들면 목록이 두 개로 갈라져서 다른
+          기기에서 적은 내용이 보이지 않아요.
+        </p>
+        {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setConfirmNew(null)} disabled={submitting}>
+            아이디 다시 입력
+          </Button>
+          <Button type="button" onClick={() => void send(true)} disabled={submitting}>
+            {submitting ? '만드는 중…' : '새 계정 만들기'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="space-y-3">
       <p className="text-sm text-gray-600 dark:text-gray-400">
-        로그인하면 어느 기기에서든 같은 목록을 볼 수 있어요. 처음 쓰는 아이디면 입력한 비밀번호로 계정이 바로
-        만들어져요.
+        로그인하면 어느 기기에서든 같은 목록을 볼 수 있어요. 쓰던 계정이 있으면 다른 기기와 <b>같은 아이디</b>로
+        로그인하세요.
       </p>
       <div className="space-y-1">
         <label htmlFor="sign-in-username" className="text-sm font-medium text-gray-700 dark:text-gray-300">

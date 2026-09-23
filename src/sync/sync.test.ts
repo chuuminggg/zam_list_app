@@ -21,6 +21,9 @@ const todo = (id: string): Todo => ({
 type Call = { method: string; url: string; body?: unknown };
 
 /** /api/data 응답을 흉내 낸다. remote[collection]이 서버에 저장된 항목. */
+/** 아직 계정이 없는 아이디 (확인 전에는 만들지 않는다) */
+const newUsers = new Set<string>();
+
 function mockApi(remote: Record<string, unknown[]>, error?: { code: string; message: string }) {
   const calls: Call[] = [];
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -29,7 +32,11 @@ function mockApi(remote: Record<string, unknown[]>, error?: { code: string; mess
     calls.push({ method, url: String(input), body });
     if (error) return Response.json({ ok: false, error }, { status: 503 });
     if (String(input).startsWith('/api/auth')) {
-      return Response.json({ ok: true, data: method === 'POST' ? { ...SESSION, created: false } : null });
+      if (method !== 'POST') return Response.json({ ok: true, data: null });
+      const data = body.create === false && newUsers.has(body.username)
+        ? { status: 'new', username: body.username }
+        : { status: 'signedIn', ...SESSION, created: false };
+      return Response.json({ ok: true, data });
     }
     const collection = new URL(String(input), 'http://x').searchParams.get('collection')!;
     return Response.json({ ok: true, data: method === 'GET' ? { items: remote[collection] ?? [] } : null });
@@ -41,6 +48,7 @@ beforeEach(() => {
   useSyncStore.setState({ session: SESSION, lastSyncedUserId: null, status: 'idle', error: null, pending: 0 });
   useTodoStore.setState({ todos: [] });
   useCategoryStore.setState({ categories: [] });
+  newUsers.clear();
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -128,5 +136,17 @@ describe('sync', () => {
     mockApi({}, { code: 'UNAUTHORIZED', message: '로그인이 필요해요.' });
     await reloadFromServer();
     expect(useSyncStore.getState()).toMatchObject({ status: 'signedOut', session: null });
+  });
+
+  it('없는 아이디는 확인받기 전까지 로그인하지 않는다', async () => {
+    useSyncStore.setState({ session: null });
+    newUsers.add('zzam');
+    mockApi({});
+
+    expect(await signIn('zzam', '1234')).toEqual({ status: 'new' });
+    expect(useSyncStore.getState().session).toBeNull();
+
+    expect(await signIn('zzam', '1234', { create: true })).toEqual({ status: 'signedIn', created: false });
+    expect(useSyncStore.getState().session).toEqual(SESSION);
   });
 });
