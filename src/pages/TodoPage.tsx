@@ -22,10 +22,10 @@ export default function TodoPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
 
-  // 서버 데이터를 받은 뒤(또는 로컬 전용일 때) 예전 형식 할 일을 옮긴다.
+  // 서버 데이터를 받은 뒤(또는 로그인 전·로컬 전용일 때) 예전 형식 할 일을 옮긴다.
   // 불러오는 중에 바꾸면 서버 데이터로 덮어써지므로 기다린다.
   useEffect(() => {
-    if (syncStatus === 'ready' || syncStatus === 'unavailable') migrateLegacyTodos();
+    if (syncStatus === 'ready' || syncStatus === 'signedOut' || syncStatus === 'unavailable') migrateLegacyTodos();
   }, [syncStatus, todos]);
 
   const sorted = useMemo(() => sortCategories(categories), [categories]);

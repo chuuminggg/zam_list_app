@@ -1,43 +1,21 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Todo } from '../../shared/data.js';
+import * as auth from '../../api/auth.js';
 import { GET, POST, PUT, DELETE } from '../../api/data.js';
+import { ensureSchema } from './db.js';
+import { createTestDb } from './testDb.js';
 
-/** Upstash REST API를 흉내 내는 메모리 Redis (해시 명령만) */
-function fakeUpstash() {
-  const hashes = new Map<string, Map<string, string>>();
-  const run = ([cmd, key, ...args]: string[]): unknown => {
-    const hash = hashes.get(key) ?? new Map<string, string>();
-    hashes.set(key, hash);
-    switch (cmd) {
-      case 'HGETALL':
-        return [...hash].flat();
-      case 'HLEN':
-        return hash.size;
-      case 'HMGET':
-        return args.map((f) => hash.get(f) ?? null);
-      case 'HSET':
-        for (let i = 0; i < args.length; i += 2) hash.set(args[i], args[i + 1]);
-        return args.length / 2;
-      case 'HDEL':
-        return args.filter((f) => hash.delete(f)).length;
-      case 'DEL':
-        return hashes.delete(key) ? 1 : 0;
-      default:
-        return { error: `unknown ${cmd}` };
-    }
+let db: ReturnType<typeof createTestDb> | null = null;
+
+// 테스트에서는 Neon 대신 메모리 Postgres(PGlite)를 쓴다. db가 null이면 원래 동작(환경변수 확인).
+vi.mock('./db.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./db.js')>();
+  return {
+    ...actual,
+    requireDb: async (env: NodeJS.ProcessEnv = process.env) => (db ? actual.ensureSchema(db) : actual.requireDb(env)),
   };
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const body = JSON.parse(String(init?.body));
-    const path = new URL(String(input)).pathname;
-    if (path === '/pipeline' || path === '/multi-exec') {
-      return Response.json(body.map((c: string[]) => ({ result: run(c) })));
-    }
-    return Response.json({ result: run(body) });
-  });
-  return hashes;
-}
+});
 
-const KEY = 'k'.repeat(43);
 const todo = (id: string, createdAt: string): Todo => ({
   id,
   title: `할 일 ${id}`,
@@ -47,16 +25,24 @@ const todo = (id: string, createdAt: string): Todo => ({
   createdAt,
 });
 
-const METHOD = new Map<unknown, string>([[GET, 'GET'], [POST, 'POST'], [PUT, 'PUT'], [DELETE, 'DELETE']]);
+const METHOD = new Map<unknown, string>([
+  [GET, 'GET'],
+  [POST, 'POST'],
+  [PUT, 'PUT'],
+  [DELETE, 'DELETE'],
+  [auth.GET, 'GET'],
+  [auth.POST, 'POST'],
+  [auth.DELETE, 'DELETE'],
+]);
 
 function call(
   handler: (r: Request) => Promise<Response>,
-  qs: string,
-  { body, key = KEY }: { body?: unknown; key?: string | null } = {},
+  path: string,
+  { body, token }: { body?: unknown; token?: string } = {},
 ) {
-  const headers: Record<string, string> = key ? { Authorization: `Bearer ${key}` } : {};
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   return handler(
-    new Request(`http://localhost/api/data?${qs}`, {
+    new Request(`http://localhost/api/${path}`, {
       method: METHOD.get(handler),
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -65,44 +51,91 @@ function call(
   ).then(async (res) => ({ status: res.status, json: (await res.json()) as any }));
 }
 
-afterEach(() => {
-  vi.restoreAllMocks();
+async function login(username = 'zam', password = '1234'): Promise<string> {
+  const res = await call(auth.POST, 'auth', { body: { username, password } });
+  expect(res.status).toBe(200);
+  return res.json.data.token;
+}
+
+beforeEach(async () => {
+  db = createTestDb();
+  await ensureSchema(db);
+});
+
+afterEach(async () => {
+  await db?.pg.close();
+  db = null;
   vi.unstubAllEnvs();
 });
 
-describe('/api/data', () => {
-  const setup = () => {
-    vi.stubEnv('KV_REST_API_URL', 'https://redis.test');
-    vi.stubEnv('KV_REST_API_TOKEN', 'token');
-    return fakeUpstash();
-  };
+describe('/api/auth', () => {
+  it('처음 쓰는 아이디면 계정을 만들고, 같은 비밀번호로 다시 로그인된다', async () => {
+    const first = await call(auth.POST, 'auth', { body: { username: 'Zam', password: '1234' } });
+    expect(first.json.data).toMatchObject({ created: true, user: { username: 'zam' } });
 
+    const again = await call(auth.POST, 'auth', { body: { username: 'zam', password: '1234' } });
+    expect(again.json.data).toMatchObject({ created: false, user: { id: first.json.data.user.id } });
+
+    const me = await call(auth.GET, 'auth', { token: again.json.data.token });
+    expect(me.json.data.user).toEqual(first.json.data.user);
+  });
+
+  it('비밀번호가 틀리면 401, 형식이 틀리면 400', async () => {
+    await login('zam', '1234');
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: '9999' } })).status).toBe(401);
+    expect((await call(auth.POST, 'auth', { body: { username: 'z', password: '1234' } })).status).toBe(400);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: '12' } })).status).toBe(400);
+  });
+
+  it('비밀번호와 세션 토큰 원문은 저장하지 않는다', async () => {
+    const token = await login('zam', 'secret-pw');
+    const dump = JSON.stringify([
+      ...(await db!.query('SELECT * FROM users')),
+      ...(await db!.query('SELECT * FROM sessions')),
+    ]);
+    expect(dump).not.toContain('secret-pw');
+    expect(dump).not.toContain(token);
+  });
+
+  it('로그아웃하면 그 토큰은 더 쓸 수 없다', async () => {
+    const token = await login();
+    await call(auth.DELETE, 'auth', { token });
+    expect((await call(auth.GET, 'auth', { token })).status).toBe(401);
+  });
+});
+
+describe('/api/data', () => {
   it('추가·수정·삭제한 항목을 createdAt 순으로 돌려준다', async () => {
-    setup();
+    const token = await login();
     const second = todo('b', '2026-09-02T00:00:00Z');
     const first = todo('a', '2026-09-01T00:00:00Z');
-    expect((await call(POST, 'collection=todos', { body: { items: [second, first] } })).status).toBe(200);
-    await call(POST, 'collection=todos', { body: { items: [{ ...first, done: true }] } });
-    await call(DELETE, 'collection=todos&id=b');
+    expect((await call(POST, 'data?collection=todos', { token, body: { items: [second, first] } })).status).toBe(200);
+    await call(POST, 'data?collection=todos', { token, body: { items: [{ ...first, done: true }] } });
+    await call(DELETE, 'data?collection=todos&id=b', { token });
 
-    const res = await call(GET, 'collection=todos');
+    const res = await call(GET, 'data?collection=todos', { token });
     expect(res.json).toEqual({ ok: true, data: { items: [{ ...first, done: true }] } });
   });
 
-  it('동기화 키별로 데이터가 분리되고 키 원문은 저장하지 않는다', async () => {
-    const hashes = setup();
-    await call(POST, 'collection=todos', { body: { items: [todo('a', '2026-09-01')] } });
-    const other = await call(GET, 'collection=todos', { key: 'o'.repeat(43) });
-    expect(other.json.data.items).toEqual([]);
-    expect([...hashes.keys()].some((k) => k.includes(KEY))).toBe(false);
+  it('사용자별로 데이터가 나뉘고, 같은 계정이면 다른 기기에서도 같은 데이터를 본다', async () => {
+    const mine = await login('zam', '1234');
+    await call(POST, 'data?collection=todos', { token: mine, body: { items: [todo('a', '2026-09-01')] } });
+
+    const other = await login('other', '1234');
+    expect((await call(GET, 'data?collection=todos', { token: other })).json.data.items).toEqual([]);
+
+    const otherDevice = await login('zam', '1234');
+    expect((await call(GET, 'data?collection=todos', { token: otherDevice })).json.data.items).toHaveLength(1);
   });
 
   it('PUT은 컬렉션 전체를 교체한다', async () => {
-    setup();
-    await call(POST, 'collection=wishlist', {
+    const token = await login();
+    await call(POST, 'data?collection=wishlist', {
+      token,
       body: { items: [{ id: 'w1', name: '가방', status: 'want', category: '패션', createdAt: '2026-09-01' }] },
     });
-    await call(PUT, 'collection=wishlist', {
+    await call(PUT, 'data?collection=wishlist', {
+      token,
       body: {
         items: [
           {
@@ -118,7 +151,7 @@ describe('/api/data', () => {
         ],
       },
     });
-    const res = await call(GET, 'collection=wishlist');
+    const res = await call(GET, 'data?collection=wishlist', { token });
     expect(res.json.data.items).toEqual([
       {
         id: 'w2',
@@ -133,43 +166,45 @@ describe('/api/data', () => {
   });
 
   it('카테고리를 저장하고 형식이 틀린 색상은 거부한다', async () => {
-    setup();
+    const token = await login();
     const category = { id: 'c1', name: '공부', color: '#3b82f6', order: 0, createdAt: '2026-09-19' };
-    expect((await call(POST, 'collection=categories', { body: { items: [category] } })).status).toBe(200);
-    expect((await call(GET, 'collection=categories')).json.data.items).toEqual([category]);
+    expect((await call(POST, 'data?collection=categories', { token, body: { items: [category] } })).status).toBe(200);
+    expect((await call(GET, 'data?collection=categories', { token })).json.data.items).toEqual([category]);
 
-    const bad = await call(POST, 'collection=categories', { body: { items: [{ ...category, color: 'red' }] } });
+    const bad = await call(POST, 'data?collection=categories', {
+      token,
+      body: { items: [{ ...category, color: 'red' }] },
+    });
     expect(bad.status).toBe(400);
   });
 
   it('할 일의 날짜·카테고리 id를 저장하고, 예전 형식 항목도 받는다', async () => {
-    setup();
+    const token = await login();
     const current = { ...todo('a', '2026-09-01T00:00:00Z'), date: '2026-09-20', categoryId: 'c1', category: '' };
     const legacy = { id: 'b', title: '예전', done: false, createdAt: '2026-09-02T00:00:00Z' };
-    await call(POST, 'collection=todos', { body: { items: [current, legacy] } });
-    const res = await call(GET, 'collection=todos');
-    expect(res.json.data.items).toEqual([
-      current,
-      { ...legacy, priority: 'medium', category: '' },
-    ]);
+    await call(POST, 'data?collection=todos', { token, body: { items: [current, legacy] } });
+    const res = await call(GET, 'data?collection=todos', { token });
+    expect(res.json.data.items).toEqual([current, { ...legacy, priority: 'medium', category: '' }]);
 
-    const bad = await call(POST, 'collection=todos', { body: { items: [{ ...current, date: '9/20' }] } });
+    const bad = await call(POST, 'data?collection=todos', { token, body: { items: [{ ...current, date: '9/20' }] } });
     expect(bad.status).toBe(400);
   });
 
-  it('키가 없으면 401, 형식이 틀린 항목은 400', async () => {
-    setup();
-    expect((await call(GET, 'collection=todos', { key: null })).status).toBe(401);
-    expect((await call(GET, 'collection=todos', { key: 'short' })).status).toBe(401);
-    const bad = await call(POST, 'collection=todos', { body: { items: [{ id: 'a', title: '' }] } });
+  it('로그인하지 않으면 401, 형식이 틀린 항목은 400', async () => {
+    const token = await login();
+    expect((await call(GET, 'data?collection=todos')).status).toBe(401);
+    expect((await call(GET, 'data?collection=todos', { token: 'nope' })).status).toBe(401);
+    const bad = await call(POST, 'data?collection=todos', { token, body: { items: [{ id: 'a', title: '' }] } });
     expect(bad.status).toBe(400);
-    expect((await call(GET, 'collection=nope')).status).toBe(400);
+    expect((await call(GET, 'data?collection=nope', { token })).status).toBe(400);
   });
 
-  it('저장소 환경변수가 없으면 NOT_CONFIGURED', async () => {
-    vi.stubEnv('KV_REST_API_URL', '');
-    vi.stubEnv('UPSTASH_REDIS_REST_URL', '');
-    const res = await call(GET, 'collection=todos');
+  it('데이터베이스 환경변수가 없으면 NOT_CONFIGURED', async () => {
+    await db?.pg.close();
+    db = null;
+    vi.stubEnv('DATABASE_URL', '');
+    vi.stubEnv('POSTGRES_URL', '');
+    const res = await call(GET, 'data?collection=todos', { token: 'x' });
     expect(res.status).toBe(503);
     expect(res.json.error.code).toBe('NOT_CONFIGURED');
   });

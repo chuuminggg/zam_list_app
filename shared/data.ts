@@ -65,11 +65,16 @@ export interface CollectionItem {
   categories: Category;
 }
 
-/**
- * 동기화 키: 기기에서 생성하는 비밀값. 같은 키를 쓰는 기기끼리 데이터를 공유한다.
- * `Authorization: Bearer <key>` 헤더로 보낸다.
- */
-export const SYNC_KEY_PATTERN = /^[A-Za-z0-9_-]{32,128}$/;
+/** 로그인한 사용자 */
+export interface AuthUser {
+  id: string;
+  username: string;
+}
+
+/** 아이디: 한글·영문 소문자·숫자·_·- 2~20자 (대소문자는 구분하지 않는다) */
+export const USERNAME_PATTERN = /^[a-z0-9가-힣_-]{2,20}$/;
+export const PASSWORD_MIN = 4;
+export const PASSWORD_MAX = 100;
 
 /** 컬렉션당 최대 항목 수 */
 export const MAX_ITEMS_PER_COLLECTION = 1000;
