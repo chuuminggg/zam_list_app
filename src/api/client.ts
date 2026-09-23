@@ -7,7 +7,7 @@ import type {
   StockProviderId,
   StockResult,
 } from '../../shared/api';
-import type { CollectionId, CollectionItem } from '../../shared/data';
+import type { AuthUser, CollectionId, CollectionItem } from '../../shared/data';
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;
@@ -75,22 +75,30 @@ export const checkStock = (
   signal?: AbortSignal,
 ) => apiGet<StockResult>('stock', { provider, id, store, name: name.slice(0, 200) }, signal);
 
-const auth = (syncKey: string) => ({ Authorization: `Bearer ${syncKey}` });
+export const signInRequest = (username: string, password: string) =>
+  apiRequest<{ token: string; user: AuthUser; created: boolean }>('auth', {
+    method: 'POST',
+    body: { username, password },
+  });
 
-export const fetchCollection = <C extends CollectionId>(syncKey: string, collection: C) =>
+const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+export const signOutRequest = (token: string) => apiRequest<null>('auth', { method: 'DELETE', headers: auth(token) });
+
+export const fetchCollection = <C extends CollectionId>(token: string, collection: C) =>
   apiRequest<{ items: CollectionItem[C][] }>('data', {
     params: { collection },
-    headers: auth(syncKey),
+    headers: auth(token),
   }).then((d) => d.items);
 
-export const upsertItems = <C extends CollectionId>(syncKey: string, collection: C, items: CollectionItem[C][]) =>
-  apiRequest<null>('data', { method: 'POST', params: { collection }, headers: auth(syncKey), body: { items } });
+export const upsertItems = <C extends CollectionId>(token: string, collection: C, items: CollectionItem[C][]) =>
+  apiRequest<null>('data', { method: 'POST', params: { collection }, headers: auth(token), body: { items } });
 
 export const replaceCollection = <C extends CollectionId>(
-  syncKey: string,
+  token: string,
   collection: C,
   items: CollectionItem[C][],
-) => apiRequest<null>('data', { method: 'PUT', params: { collection }, headers: auth(syncKey), body: { items } });
+) => apiRequest<null>('data', { method: 'PUT', params: { collection }, headers: auth(token), body: { items } });
 
-export const deleteItem = (syncKey: string, collection: CollectionId, id: string) =>
-  apiRequest<null>('data', { method: 'DELETE', params: { collection, id }, headers: auth(syncKey) });
+export const deleteItem = (token: string, collection: CollectionId, id: string) =>
+  apiRequest<null>('data', { method: 'DELETE', params: { collection, id }, headers: auth(token) });

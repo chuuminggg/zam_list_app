@@ -95,3 +95,16 @@ export function oneOf<T extends string>(url: URL, name: string, allowed: readonl
   }
   return value as T;
 }
+
+/** 요청 본문을 JSON으로 읽는다. 크기 제한을 넘거나 JSON이 아니면 BAD_REQUEST. */
+export async function readJson(request: Request, maxBytes: number): Promise<unknown> {
+  const text = await request.text();
+  if (text.length > maxBytes) {
+    throw new ApiException('BAD_REQUEST', '요청 본문이 너무 큽니다.');
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ApiException('BAD_REQUEST', '요청 본문이 올바른 JSON이 아닙니다.');
+  }
+}

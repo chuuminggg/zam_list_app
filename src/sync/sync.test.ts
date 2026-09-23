@@ -4,9 +4,11 @@ import type { Todo } from '../../shared/data';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useSyncStore } from '../stores/syncStore';
 import { useTodoStore } from '../stores/todoStore';
-import { reloadFromServer, startSync } from './sync';
+import { useWishStore } from '../stores/wishStore';
+import { reloadFromServer, signIn, signOut, startSync } from './sync';
 
-const KEY = 'k'.repeat(43);
+const TOKEN = 't'.repeat(43);
+const SESSION = { token: TOKEN, user: { id: 'u1', username: 'zam' } };
 const todo = (id: string): Todo => ({
   id,
   title: id,
@@ -26,6 +28,9 @@ function mockApi(remote: Record<string, unknown[]>, error?: { code: string; mess
     const body = init?.body ? JSON.parse(String(init.body)) : undefined;
     calls.push({ method, url: String(input), body });
     if (error) return Response.json({ ok: false, error }, { status: 503 });
+    if (String(input).startsWith('/api/auth')) {
+      return Response.json({ ok: true, data: method === 'POST' ? { ...SESSION, created: false } : null });
+    }
     const collection = new URL(String(input), 'http://x').searchParams.get('collection')!;
     return Response.json({ ok: true, data: method === 'GET' ? { items: remote[collection] ?? [] } : null });
   });
@@ -33,7 +38,7 @@ function mockApi(remote: Record<string, unknown[]>, error?: { code: string; mess
 }
 
 beforeEach(() => {
-  useSyncStore.setState({ syncKey: KEY, lastSyncedKey: null, status: 'idle', error: null, pending: 0 });
+  useSyncStore.setState({ session: SESSION, lastSyncedUserId: null, status: 'idle', error: null, pending: 0 });
   useTodoStore.setState({ todos: [] });
   useCategoryStore.setState({ categories: [] });
 });
@@ -41,7 +46,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe('sync', () => {
-  it('이 키로 처음 동기화할 때 서버가 비어 있으면 로컬 데이터를 올린다', async () => {
+  it('이 계정으로 처음 동기화할 때 서버가 비어 있으면 로컬 데이터를 올린다', async () => {
     useTodoStore.setState({ todos: [todo('a')] });
     const calls = mockApi({});
     await reloadFromServer();
@@ -68,7 +73,7 @@ describe('sync', () => {
     expect(writes.map((c) => c.method)).toEqual(['POST', 'DELETE']);
     expect(writes[0].body).toEqual({ items: [{ ...todo('server'), done: true }] });
     expect(writes[1].url).toContain('id=server');
-    expect(new Headers(vi.mocked(fetch).mock.calls[0][1]?.headers).get('Authorization')).toBe(`Bearer ${KEY}`);
+    expect(new Headers(vi.mocked(fetch).mock.calls[0][1]?.headers).get('Authorization')).toBe(`Bearer ${TOKEN}`);
   });
 
   it('카테고리도 서버와 동기화한다', async () => {
@@ -92,5 +97,36 @@ describe('sync', () => {
     useTodoStore.getState().addTodo({ title: 'x', date: '2026-09-19', categoryId: '' });
     expect(calls.filter((c) => c.method !== 'GET')).toEqual([]);
     expect(useTodoStore.getState().todos).toHaveLength(1);
+  });
+
+  it('로그인 전에는 서버에 요청하지 않고 이 기기에만 저장한다', async () => {
+    useSyncStore.setState({ session: null });
+    const calls = mockApi({});
+    await reloadFromServer();
+    expect(useSyncStore.getState().status).toBe('signedOut');
+
+    useTodoStore.getState().addTodo({ title: 'x', date: '2026-09-19', categoryId: '' });
+    expect(calls).toEqual([]);
+  });
+
+  it('로그인하면 계정 데이터를 불러오고, 로그아웃하면 이 기기 목록을 비운다', async () => {
+    useSyncStore.setState({ session: null });
+    useWishStore.setState({ items: [] });
+    const calls = mockApi({ todos: [todo('server')] });
+    await signIn('zam', '1234');
+    expect(useSyncStore.getState()).toMatchObject({ status: 'ready', session: SESSION, lastSyncedUserId: 'u1' });
+    expect(useTodoStore.getState().todos).toEqual([todo('server')]);
+
+    await signOut();
+    expect(useSyncStore.getState()).toMatchObject({ status: 'signedOut', session: null });
+    expect(useTodoStore.getState().todos).toEqual([]);
+    const writes = calls.filter((c) => c.method !== 'GET');
+    expect(writes.map((c) => `${c.method} ${c.url}`)).toEqual(['POST /api/auth', 'DELETE /api/auth']);
+  });
+
+  it('세션이 만료되면(401) 로그인 전 상태로 돌아간다', async () => {
+    mockApi({}, { code: 'UNAUTHORIZED', message: '로그인이 필요해요.' });
+    await reloadFromServer();
+    expect(useSyncStore.getState()).toMatchObject({ status: 'signedOut', session: null });
   });
 });

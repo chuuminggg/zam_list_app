@@ -55,11 +55,11 @@ export class Redis {
       });
     } catch (error) {
       console.error('[redis]', error);
-      throw new ApiException('UPSTREAM_ERROR', '저장소에 연결할 수 없습니다.');
+      throw new ApiException('UPSTREAM_ERROR', '캐시 서버에 연결할 수 없습니다.');
     }
     if (!response.ok) {
       console.error('[redis]', response.status, await response.text().catch(() => ''));
-      throw new ApiException('UPSTREAM_ERROR', `저장소 응답 오류입니다. (${response.status})`);
+      throw new ApiException('UPSTREAM_ERROR', `캐시 서버 응답 오류입니다. (${response.status})`);
     }
     return (await response.json()) as T;
   }
@@ -68,7 +68,7 @@ export class Redis {
 function unwrap<T>(reply: Reply): T {
   if (reply.error) {
     console.error('[redis]', reply.error);
-    throw new ApiException('UPSTREAM_ERROR', '저장소 명령이 실패했습니다.');
+    throw new ApiException('UPSTREAM_ERROR', '캐시 명령이 실패했습니다.');
   }
   return reply.result as T;
 }
