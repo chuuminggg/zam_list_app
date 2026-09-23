@@ -75,11 +75,12 @@ export const checkStock = (
   signal?: AbortSignal,
 ) => apiGet<StockResult>('stock', { provider, id, store, name: name.slice(0, 200) }, signal);
 
-export const signInRequest = (username: string, password: string) =>
-  apiRequest<{ token: string; user: AuthUser; created: boolean }>('auth', {
-    method: 'POST',
-    body: { username, password },
-  });
+export type SignInResponse =
+  | { status: 'signedIn'; token: string; user: AuthUser; created: boolean }
+  | { status: 'new'; username: string };
+
+export const signInRequest = (username: string, password: string, create: boolean) =>
+  apiRequest<SignInResponse>('auth', { method: 'POST', body: { username, password, create } });
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 

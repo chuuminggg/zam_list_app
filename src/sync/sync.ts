@@ -163,14 +163,20 @@ export function retrySync(): Promise<void> {
 }
 
 /**
- * 아이디·비밀번호로 로그인하고 그 계정의 데이터를 불러온다. 처음 쓰는 아이디면 계정이 만들어진다.
+ * 아이디·비밀번호로 로그인하고 그 계정의 데이터를 불러온다.
+ * 처음 보는 아이디면 계정을 만들지 않고 'new'를 돌려준다. 화면에서 확인받아 create: true로 다시 부른다.
  * 실패하면 ApiClientError를 던진다 (화면에서 메시지를 보여준다).
  */
-export async function signIn(username: string, password: string): Promise<{ created: boolean }> {
-  const { token, user, created } = await signInRequest(username, password);
-  setSync({ session: { token, user } });
+export async function signIn(
+  username: string,
+  password: string,
+  { create = false } = {},
+): Promise<{ status: 'new' } | { status: 'signedIn'; created: boolean }> {
+  const result = await signInRequest(username, password, create);
+  if (result.status === 'new') return { status: 'new' };
+  setSync({ session: { token: result.token, user: result.user } });
   await reloadFromServer();
-  return { created };
+  return { status: 'signedIn', created: result.created };
 }
 
 /** 로그아웃. 다음 사람이 보지 않도록 이 기기의 목록도 비운다. */

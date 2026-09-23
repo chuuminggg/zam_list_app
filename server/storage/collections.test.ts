@@ -52,7 +52,7 @@ function call(
 }
 
 async function login(username = 'zam', password = '1234'): Promise<string> {
-  const res = await call(auth.POST, 'auth', { body: { username, password } });
+  const res = await call(auth.POST, 'auth', { body: { username, password, create: true } });
   expect(res.status).toBe(200);
   return res.json.data.token;
 }
@@ -69,9 +69,15 @@ afterEach(async () => {
 });
 
 describe('/api/auth', () => {
-  it('처음 쓰는 아이디면 계정을 만들고, 같은 비밀번호로 다시 로그인된다', async () => {
-    const first = await call(auth.POST, 'auth', { body: { username: 'Zam', password: '1234' } });
-    expect(first.json.data).toMatchObject({ created: true, user: { username: 'zam' } });
+  it('없는 아이디는 확인 전까지 계정을 만들지 않는다', async () => {
+    const asked = await call(auth.POST, 'auth', { body: { username: 'zam', password: '1234' } });
+    expect(asked.json.data).toEqual({ status: 'new', username: 'zam' });
+    expect(await db!.query('SELECT username FROM users')).toEqual([]);
+  });
+
+  it('확인하면 계정을 만들고, 같은 비밀번호로 다시 로그인된다', async () => {
+    const first = await call(auth.POST, 'auth', { body: { username: 'Zam', password: '1234', create: true } });
+    expect(first.json.data).toMatchObject({ status: 'signedIn', created: true, user: { username: 'zam' } });
 
     const again = await call(auth.POST, 'auth', { body: { username: 'zam', password: '1234' } });
     expect(again.json.data).toMatchObject({ created: false, user: { id: first.json.data.user.id } });

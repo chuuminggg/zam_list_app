@@ -49,15 +49,21 @@ interface UserRow {
   password_hash: string;
 }
 
+/** 로그인 결과. status가 'new'면 아직 없는 아이디라 계정을 만들지 않고 돌아온 것. */
+export type SignInResult =
+  | { status: 'signedIn'; token: string; user: AuthUser; created: boolean }
+  | { status: 'new'; username: string };
+
 /**
- * 아이디·비밀번호로 로그인한다. 처음 보는 아이디면 계정을 만든다.
- * 새 세션 토큰을 돌려준다.
+ * 아이디·비밀번호로 로그인한다.
+ * 처음 보는 아이디는 오타로 계정이 갈라지지 않도록 create: true로 다시 요청해야 만든다.
  */
 export async function signIn(
   db: Db,
   username: string,
   password: string,
-): Promise<{ token: string; user: AuthUser; created: boolean }> {
+  create = false,
+): Promise<SignInResult> {
   let [user] = await db.query<UserRow>('SELECT id, username, password_hash FROM users WHERE username = $1', [username]);
   let created = false;
 
@@ -66,6 +72,7 @@ export async function signIn(
       throw new ApiException('UNAUTHORIZED', '비밀번호가 맞지 않아요.');
     }
   } else {
+    if (!create) return { status: 'new', username };
     const inserted = await db.query<UserRow>(
       `INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)
        ON CONFLICT (username) DO NOTHING
@@ -83,7 +90,7 @@ export async function signIn(
     `INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, now() + make_interval(days => $3))`,
     [hashToken(token), user.id, SESSION_DAYS],
   );
-  return { token, user: { id: user.id, username: user.username }, created };
+  return { status: 'signedIn', token, user: { id: user.id, username: user.username }, created };
 }
 
 function bearerToken(request: Request): string {
