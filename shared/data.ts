@@ -42,6 +42,16 @@ export interface StockLink {
   productName: string;
 }
 
+/** 재조회로 확인한 시점의 가격 */
+export interface PricePoint {
+  /** 확인 시각 (ISO) */
+  at: string;
+  price: number;
+}
+
+/** 항목당 보관하는 가격 이력 개수 (오래된 것부터 버린다) */
+export const MAX_PRICE_HISTORY = 20;
+
 export interface WishItem {
   id: string;
   name: string;
@@ -54,6 +64,12 @@ export interface WishItem {
   createdAt: string;
   source?: ProductSource;
   stockLink?: StockLink;
+  /** 마지막 재조회에서 확인한 품절·판매완료 여부 */
+  soldOut?: boolean;
+  /** 마지막 재조회 시각 (ISO) */
+  lastCheckedAt?: string;
+  /** 가격이 바뀔 때마다 쌓는 이력 (오래된 순) */
+  priceHistory?: PricePoint[];
 }
 
 export const COLLECTION_IDS = ['todos', 'wishlist', 'categories'] as const;

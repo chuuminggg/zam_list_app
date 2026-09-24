@@ -67,6 +67,10 @@ export const fetchProviders = (signal?: AbortSignal) =>
 export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal) =>
   apiGet<ProductResult[]>('search', { provider, q, limit: 10 }, signal);
 
+/** 담아둔 상품 단건 재조회. name은 단건 조회 API가 없는 공급자가 상품을 다시 찾을 때 쓴다. */
+export const refetchProduct = (provider: SearchProviderId, id: string, name: string, signal?: AbortSignal) =>
+  apiGet<ProductResult>('product', { provider, id, name: name.slice(0, 300) }, signal);
+
 export const checkStock = (
   provider: StockProviderId,
   id: string,

@@ -26,4 +26,5 @@ export const WISH_SORTS: { value: WishSort; label: string }[] = [
   { value: 'oldest', label: '오래된순' },
   { value: 'price-asc', label: '가격 낮은순' },
   { value: 'price-desc', label: '가격 높은순' },
+  { value: 'price-drop', label: '가격 하락순' },
 ];
