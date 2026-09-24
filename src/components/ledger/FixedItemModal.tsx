@@ -7,6 +7,8 @@ import { TYPE_LABEL, findCategory } from '../../constants/ledger';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { FixedItem, LedgerType } from '../../types';
 import { formatMonth, formatWon, parseAmount, type MonthKey } from '../../utils/ledger';
+import AmountInput from './AmountInput';
+import CategoryIcon from './CategoryIcon';
 import LedgerTypeFields from './LedgerTypeFields';
 
 const MONTH_PATTERN = /^\d{4}-\d{2}$/;
@@ -44,7 +46,7 @@ export default function FixedItemModal({ onClose, month }: FixedItemModalProps) 
       {sorted.length === 0 ? (
         <p className="text-sm text-gray-400 dark:text-gray-500 py-6 text-center">등록된 고정 항목이 없어요.</p>
       ) : (
-        <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+        <ul>
           {sorted.map((item) => {
             const active = item.startMonth <= month && (!item.endMonth || month <= item.endMonth);
             return (
@@ -52,8 +54,9 @@ export default function FixedItemModal({ onClose, month }: FixedItemModalProps) 
                 <button
                   type="button"
                   onClick={() => setEditing(item)}
-                  className={`w-full flex items-center gap-2 py-2.5 text-left ${active ? '' : 'opacity-50'}`}
+                  className={`w-full flex items-center gap-3 px-1 py-2 rounded-xl text-left hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors ${active ? '' : 'opacity-50'}`}
                 >
+                  <CategoryIcon category={findCategory(item.type, item.category)} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900 dark:text-white truncate">
                       {item.name}
@@ -64,7 +67,7 @@ export default function FixedItemModal({ onClose, month }: FixedItemModalProps) 
                     </span>
                   </span>
                   <span
-                    className={`text-sm font-semibold whitespace-nowrap ${item.type === 'income' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}
+                    className={`text-sm font-semibold whitespace-nowrap tabular-nums ${item.type === 'income' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}
                   >
                     {item.type === 'income' ? '+' : '-'}
                     {formatWon(item.amount)}
@@ -147,14 +150,7 @@ function FixedItemForm({ item, month, onDone }: FixedItemFormProps) {
         onChange={(e) => set({ name: e.target.value })}
         className="text-sm"
       />
-      <Input
-        inputMode="numeric"
-        aria-label="금액"
-        placeholder="금액 (원) *"
-        value={form.amount}
-        onChange={(e) => set({ amount: e.target.value })}
-        className="text-sm"
-      />
+      <AmountInput value={form.amount} type={form.type} onChange={(amount) => set({ amount })} />
       <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
         매월
         <Input

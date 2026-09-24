@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { FixedItem, Transaction } from '../types';
-import { addMonths, entriesForMonth, fixedEntriesForMonth, formatWon, summarize } from './ledger';
+import {
+  addMonths,
+  dailyTotals,
+  entriesForMonth,
+  fixedEntriesForMonth,
+  formatShortWon,
+  formatWon,
+  summarize,
+} from './ledger';
 
 const fixed = (overrides: Partial<FixedItem>): FixedItem => ({
   id: 'f',
@@ -71,5 +79,21 @@ describe('ledger utils', () => {
 
   it('금액을 원 단위로 표시한다', () => {
     expect(formatWon(1234000)).toBe('1,234,000원');
+  });
+
+  it('달력용 짧은 금액은 만·억 단위로 줄인다', () => {
+    expect(formatShortWon(8000)).toBe('8,000');
+    expect(formatShortWon(12000)).toBe('1.2만');
+    expect(formatShortWon(3000000)).toBe('300만');
+    expect(formatShortWon(150_000_000)).toBe('1.5억');
+  });
+
+  it('날짜별 수입·지출 합계를 낸다', () => {
+    const entries = entriesForMonth(
+      [tx({ id: 'a', amount: 3000 }), tx({ id: 'b', amount: 2000 }), tx({ id: 'c', type: 'income', amount: 9000 })],
+      [],
+      '2026-09'
+    );
+    expect(dailyTotals(entries).get('2026-09-10')).toEqual({ income: 9000, expense: 5000 });
   });
 });
