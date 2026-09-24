@@ -3,6 +3,7 @@ import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import SyncButton from './components/sync/SyncButton';
 import ThemeToggle from './components/common/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
+import LedgerPage from './pages/LedgerPage';
 import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
 import { startSync } from './sync/sync';
@@ -35,6 +36,12 @@ export default function App() {
             >
               위시리스트
             </NavLink>
+            <NavLink
+              to="/ledger"
+              className={({ isActive }) => `${NAV_BASE} ${isActive ? NAV_ACTIVE : NAV_IDLE}`}
+            >
+              가계부
+            </NavLink>
             <div className="ml-auto flex items-center">
               <SyncButton />
               <ThemeToggle />
@@ -45,6 +52,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<TodoPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
+            <Route path="/ledger" element={<LedgerPage />} />
           </Routes>
         </main>
       </div>
