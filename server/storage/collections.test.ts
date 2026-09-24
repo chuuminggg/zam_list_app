@@ -272,3 +272,49 @@ describe('/api/data', () => {
     expect(res.json.error.code).toBe('NOT_CONFIGURED');
   });
 });
+
+describe('/api/data 가계부', () => {
+  const transaction = {
+    id: 't1',
+    type: 'expense',
+    amount: 12000,
+    category: 'food',
+    date: '2026-09-24',
+    memo: '점심',
+    createdAt: '2026-09-24T03:00:00Z',
+  };
+  const fixed = {
+    id: 'f1',
+    type: 'income',
+    name: '월급',
+    amount: 3000000,
+    category: 'salary',
+    day: 25,
+    startMonth: '2026-01',
+    createdAt: '2026-09-01T00:00:00Z',
+  };
+
+  it('내역과 고정 항목을 저장하고 그대로 돌려준다', async () => {
+    const token = await login();
+    await call(POST, 'data?collection=transactions', { token, body: { items: [transaction] } });
+    await call(POST, 'data?collection=fixedItems', { token, body: { items: [fixed] } });
+
+    expect((await call(GET, 'data?collection=transactions', { token })).json.data.items).toEqual([transaction]);
+    expect((await call(GET, 'data?collection=fixedItems', { token })).json.data.items).toEqual([fixed]);
+  });
+
+  it('금액·날짜·고정 날짜가 올바르지 않으면 400', async () => {
+    const token = await login();
+    const bad = [
+      ['transactions', { ...transaction, amount: -1 }],
+      ['transactions', { ...transaction, amount: 10.5 }],
+      ['transactions', { ...transaction, date: '2026-9-24' }],
+      ['fixedItems', { ...fixed, day: 32 }],
+      ['fixedItems', { ...fixed, endMonth: '2025-12' }],
+    ] as const;
+    for (const [collection, item] of bad) {
+      const res = await call(POST, `data?collection=${collection}`, { token, body: { items: [item] } });
+      expect(res.status, JSON.stringify(item)).toBe(400);
+    }
+  });
+});

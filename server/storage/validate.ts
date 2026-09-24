@@ -1,11 +1,14 @@
 import { SEARCH_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
 import {
+  MAX_LEDGER_AMOUNT,
   MAX_PRICE_HISTORY,
   type Category,
   type CollectionId,
   type CollectionItem,
+  type FixedItem,
   type PricePoint,
   type Todo,
+  type Transaction,
   type WishItem,
 } from '../../shared/data.js';
 import { ApiException } from '../errors.js';
@@ -19,7 +22,9 @@ type Obj = Record<string, unknown>;
 
 const ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MONTH_PATTERN = /^\d{4}-\d{2}$/;
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const LEDGER_TYPES = ['income', 'expense'] as const;
 
 function invalid(field: string): never {
   throw new ApiException('BAD_REQUEST', `항목의 '${field}' 값이 올바르지 않습니다.`);
@@ -148,10 +153,60 @@ export function parseWishItem(value: unknown): WishItem {
   });
 }
 
+/** 가계부 금액: 1원 이상 정수 */
+function amount(obj: Obj): number {
+  const value = obj.amount;
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0 || value > MAX_LEDGER_AMOUNT) {
+    invalid('amount');
+  }
+  return value;
+}
+
+function pattern(obj: Obj, field: string, re: RegExp): string {
+  const value = str(obj, field, 64);
+  if (!re.test(value)) invalid(field);
+  return value;
+}
+
+export function parseTransaction(value: unknown): Transaction {
+  const obj = asObject(value, 'transaction');
+  return compact({
+    id: id(obj),
+    type: oneOf(obj, 'type', LEDGER_TYPES),
+    amount: amount(obj),
+    category: str(obj, 'category', 30, 1),
+    date: pattern(obj, 'date', DATE_PATTERN),
+    memo: optStr(obj, 'memo', 500),
+    createdAt: str(obj, 'createdAt', 40, 1),
+  });
+}
+
+export function parseFixedItem(value: unknown): FixedItem {
+  const obj = asObject(value, 'fixedItem');
+  const day = obj.day;
+  if (typeof day !== 'number' || !Number.isInteger(day) || day < 1 || day > 31) invalid('day');
+  const startMonth = pattern(obj, 'startMonth', MONTH_PATTERN);
+  const endMonth = optPattern(obj, 'endMonth', MONTH_PATTERN);
+  if (endMonth !== undefined && endMonth < startMonth) invalid('endMonth');
+  return compact({
+    id: id(obj),
+    type: oneOf(obj, 'type', LEDGER_TYPES),
+    name: str(obj, 'name', 100, 1),
+    amount: amount(obj),
+    category: str(obj, 'category', 30, 1),
+    day,
+    startMonth,
+    endMonth,
+    createdAt: str(obj, 'createdAt', 40, 1),
+  });
+}
+
 export const PARSERS: { [C in CollectionId]: (value: unknown) => CollectionItem[C] } = {
   todos: parseTodo,
   wishlist: parseWishItem,
   categories: parseCategory,
+  transactions: parseTransaction,
+  fixedItems: parseFixedItem,
 };
 
 /** `{ items: [...] }` 요청 본문을 검증한다. 같은 id가 여러 번 오면 마지막 것을 쓴다. */

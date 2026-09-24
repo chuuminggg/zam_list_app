@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Todo } from '../../shared/data';
 import { useCategoryStore } from '../stores/categoryStore';
+import { useLedgerStore } from '../stores/ledgerStore';
 import { useSyncStore } from '../stores/syncStore';
 import { useTodoStore } from '../stores/todoStore';
 import { useWishStore } from '../stores/wishStore';
@@ -48,6 +49,7 @@ beforeEach(() => {
   useSyncStore.setState({ session: SESSION, lastSyncedUserId: null, status: 'idle', error: null, pending: 0 });
   useTodoStore.setState({ todos: [] });
   useCategoryStore.setState({ categories: [] });
+  useLedgerStore.setState({ transactions: [], fixedItems: [] });
   newUsers.clear();
 });
 
@@ -95,6 +97,28 @@ describe('sync', () => {
     const post = calls.find((c) => c.method === 'POST');
     expect(post?.url).toContain('collection=categories');
     expect(post?.body).toEqual({ items: [{ ...category, name: '독서' }] });
+  });
+
+  it('가계부 내역과 고정 항목도 서버와 동기화한다', async () => {
+    const fixed = {
+      id: 'f1',
+      type: 'expense' as const,
+      name: '월세',
+      amount: 500000,
+      category: 'housing',
+      day: 1,
+      startMonth: '2026-09',
+      createdAt: '2026-09-01',
+    };
+    const calls = mockApi({ fixedItems: [fixed] });
+    await reloadFromServer();
+    expect(useLedgerStore.getState().fixedItems).toEqual([fixed]);
+
+    useLedgerStore.getState().addTransaction({ type: 'expense', amount: 12000, category: 'food', date: '2026-09-24' });
+    await vi.waitFor(() => expect(useSyncStore.getState().pending).toBe(0));
+    const post = calls.find((c) => c.method === 'POST');
+    expect(post?.url).toContain('collection=transactions');
+    expect(post?.body).toEqual({ items: [expect.objectContaining({ amount: 12000, date: '2026-09-24' })] });
   });
 
   it('서버 저장소가 없으면 로컬 전용 모드가 되고 쓰기 요청을 보내지 않는다', async () => {

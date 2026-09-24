@@ -72,13 +72,52 @@ export interface WishItem {
   priceHistory?: PricePoint[];
 }
 
-export const COLLECTION_IDS = ['todos', 'wishlist', 'categories'] as const;
+/** 가계부 내역 구분 */
+export type LedgerType = 'income' | 'expense';
+
+/** 가계부 내역 (한 번 들어오거나 나간 돈) */
+export interface Transaction {
+  id: string;
+  type: LedgerType;
+  /** 금액 (원, 양의 정수) */
+  amount: number;
+  /** 카테고리 id (src/constants/ledger.ts) */
+  category: string;
+  /** 날짜 (로컬 기준 YYYY-MM-DD) */
+  date: string;
+  memo?: string;
+  createdAt: string;
+}
+
+/** 매월 반복되는 고정 수입·지출. 월별 내역은 저장하지 않고 화면에서 계산한다. */
+export interface FixedItem {
+  id: string;
+  type: LedgerType;
+  name: string;
+  /** 금액 (원, 양의 정수) */
+  amount: number;
+  category: string;
+  /** 매월 며칠 (1~31). 그 달에 없는 날이면 말일로 본다. */
+  day: number;
+  /** 적용 시작 월 (YYYY-MM) */
+  startMonth: string;
+  /** 적용 마지막 월 (YYYY-MM). 없으면 계속 적용 */
+  endMonth?: string;
+  createdAt: string;
+}
+
+/** 가계부 금액 상한 (원) */
+export const MAX_LEDGER_AMOUNT = 1_000_000_000_000;
+
+export const COLLECTION_IDS = ['todos', 'wishlist', 'categories', 'transactions', 'fixedItems'] as const;
 export type CollectionId = (typeof COLLECTION_IDS)[number];
 
 export interface CollectionItem {
   todos: Todo;
   wishlist: WishItem;
   categories: Category;
+  transactions: Transaction;
+  fixedItems: FixedItem;
 }
 
 /** 로그인한 사용자 */
