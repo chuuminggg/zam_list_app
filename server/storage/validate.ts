@@ -1,5 +1,13 @@
 import { SEARCH_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
-import type { Category, CollectionId, CollectionItem, Todo, WishItem } from '../../shared/data.js';
+import {
+  MAX_PRICE_HISTORY,
+  type Category,
+  type CollectionId,
+  type CollectionItem,
+  type PricePoint,
+  type Todo,
+  type WishItem,
+} from '../../shared/data.js';
 import { ApiException } from '../errors.js';
 
 /**
@@ -85,10 +93,26 @@ export function parseCategory(value: unknown): Category {
   };
 }
 
+function price(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) invalid(field);
+  return value;
+}
+
+/** 가격 이력은 최근 MAX_PRICE_HISTORY개만 남긴다. */
+function parsePriceHistory(value: unknown): PricePoint[] | undefined {
+  if (value == null) return undefined;
+  if (!Array.isArray(value)) invalid('priceHistory');
+  const points = value.slice(-MAX_PRICE_HISTORY).map((entry) => {
+    const point = asObject(entry, 'priceHistory');
+    return { at: str(point, 'at', 40, 1), price: price(point.price, 'priceHistory') };
+  });
+  return points.length > 0 ? points : undefined;
+}
+
 export function parseWishItem(value: unknown): WishItem {
   const obj = asObject(value, 'wish');
-  const price = obj.price;
-  if (price != null && (typeof price !== 'number' || !Number.isFinite(price) || price < 0)) invalid('price');
+  if (obj.price != null) price(obj.price, 'price');
+  if (obj.soldOut != null && typeof obj.soldOut !== 'boolean') invalid('soldOut');
 
   let source: WishItem['source'];
   if (obj.source != null) {
@@ -110,7 +134,7 @@ export function parseWishItem(value: unknown): WishItem {
     id: id(obj),
     name: str(obj, 'name', 300, 1),
     url: optStr(obj, 'url', 2000),
-    price: price == null ? undefined : (price as number),
+    price: obj.price == null ? undefined : (obj.price as number),
     memo: optStr(obj, 'memo', 2000),
     imageUrl: optStr(obj, 'imageUrl', 2000),
     status: oneOf(obj, 'status', ['want', 'bought', 'dropped'] as const),
@@ -118,6 +142,9 @@ export function parseWishItem(value: unknown): WishItem {
     createdAt: str(obj, 'createdAt', 40, 1),
     source,
     stockLink,
+    soldOut: obj.soldOut == null ? undefined : (obj.soldOut as boolean),
+    lastCheckedAt: optStr(obj, 'lastCheckedAt', 40),
+    priceHistory: parsePriceHistory(obj.priceHistory),
   });
 }
 

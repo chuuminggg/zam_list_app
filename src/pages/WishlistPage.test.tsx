@@ -116,4 +116,72 @@ describe('WishlistPage', () => {
     expect(screen.getByText('마켓컬리')).toBeTruthy();
     expect(screen.getByRole('link', { name: '마켓컬리에서 보기' })).toBeTruthy();
   });
+
+  it('새로고침 버튼은 가격을 다시 확인해 변동과 품절을 보여준다', async () => {
+    useWishStore.setState({
+      items: [
+        {
+          id: 'w3',
+          name: '우유',
+          status: 'want',
+          category: '마켓컬리',
+          createdAt: '2026-09-01T00:00:00.000Z',
+          price: 5000,
+          source: { provider: 'kurly', externalId: '1' },
+        },
+      ],
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json({
+        ok: true,
+        data: {
+          provider: 'kurly',
+          externalId: '1',
+          name: '우유',
+          price: 4000,
+          url: 'https://www.kurly.com/goods/1',
+          soldOut: true,
+          badges: ['품절'],
+        },
+      })
+    );
+
+    render(<WishlistPage />);
+    await userEvent.click(screen.getByRole('button', { name: '가격·품절 다시 확인' }));
+
+    expect(await screen.findByText('▼ 1,000원')).toBeTruthy();
+    expect(screen.getByText('₩4,000')).toBeTruthy();
+    expect(screen.getByText('품절')).toBeTruthy();
+    const requested = new URL(String(fetchMock.mock.calls[0][0]), 'http://localhost');
+    expect(requested.pathname).toBe('/api/product');
+    expect(Object.fromEntries(requested.searchParams)).toEqual({ provider: 'kurly', id: '1', name: '우유' });
+    // 방금 확인했으므로 전체 새로고침은 잠시 막힌다
+    expect(screen.getByRole('button', { name: /전체 새로고침/ }).hasAttribute('disabled')).toBe(true);
+  });
+
+  it('재조회에 실패하면 카드에 사유를 보여준다', async () => {
+    useWishStore.setState({
+      items: [
+        {
+          id: 'w4',
+          name: '앨범',
+          status: 'want',
+          category: '번개장터',
+          createdAt: '2026-09-01T00:00:00.000Z',
+          source: { provider: 'bunjang', externalId: '9' },
+        },
+      ],
+    });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      Response.json(
+        { ok: false, error: { code: 'NOT_FOUND', message: '판매처에서 상품을 찾지 못했습니다.' } },
+        { status: 404 }
+      )
+    );
+
+    render(<WishlistPage />);
+    await userEvent.click(screen.getByRole('button', { name: '가격·품절 다시 확인' }));
+
+    expect(await screen.findByText('판매처에서 상품을 찾지 못했습니다.')).toBeTruthy();
+  });
 });

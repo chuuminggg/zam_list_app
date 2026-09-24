@@ -14,9 +14,22 @@ interface WishListProps {
   filter: WishFilter;
   onEdit: (item: WishItem) => void;
   onCheckStock: (item: WishItem) => void;
+  onRefresh: (item: WishItem) => void;
+  /** 재조회 중인 항목 id */
+  refreshing: ReadonlySet<string>;
+  /** 항목 id → 재조회 실패 메시지 */
+  refreshErrors: Readonly<Record<string, string>>;
 }
 
-export default function WishList({ items, filter, onEdit, onCheckStock }: WishListProps) {
+export default function WishList({
+  items,
+  filter,
+  onEdit,
+  onCheckStock,
+  onRefresh,
+  refreshing,
+  refreshErrors,
+}: WishListProps) {
   if (items.length === 0) {
     return <EmptyState icon="🎁" {...EMPTY_COPY[filter]} />;
   }
@@ -29,6 +42,9 @@ export default function WishList({ items, filter, onEdit, onCheckStock }: WishLi
           item={item}
           onEdit={() => onEdit(item)}
           onCheckStock={() => onCheckStock(item)}
+          onRefresh={() => onRefresh(item)}
+          refreshing={refreshing.has(item.id)}
+          refreshError={refreshErrors[item.id]}
         />
       ))}
     </ul>

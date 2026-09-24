@@ -134,6 +134,63 @@ describe('/api/data', () => {
     expect((await call(GET, 'data?collection=todos', { token: otherDevice })).json.data.items).toHaveLength(1);
   });
 
+  it('재조회로 생긴 가격 이력·품절 정보를 저장한다', async () => {
+    const token = await login();
+    await call(POST, 'data?collection=wishlist', {
+      token,
+      body: {
+        items: [
+          {
+            id: 'w9',
+            name: '우유',
+            price: 4000,
+            status: 'want',
+            category: '마켓컬리',
+            createdAt: '2026-09-01',
+            soldOut: true,
+            lastCheckedAt: '2026-09-24T06:00:00.000Z',
+            priceHistory: [
+              { at: '2026-09-01', price: 5000 },
+              { at: '2026-09-24T06:00:00.000Z', price: 4000 },
+            ],
+          },
+        ],
+      },
+    });
+
+    const [saved] = (await call(GET, 'data?collection=wishlist', { token })).json.data.items;
+    expect(saved).toMatchObject({
+      price: 4000,
+      soldOut: true,
+      lastCheckedAt: '2026-09-24T06:00:00.000Z',
+      priceHistory: [
+        { at: '2026-09-01', price: 5000 },
+        { at: '2026-09-24T06:00:00.000Z', price: 4000 },
+      ],
+    });
+  });
+
+  it('가격 이력 형식이 틀리면 거부한다', async () => {
+    const token = await login();
+    const res = await call(POST, 'data?collection=wishlist', {
+      token,
+      body: {
+        items: [
+          {
+            id: 'w10',
+            name: '우유',
+            status: 'want',
+            category: '마켓컬리',
+            createdAt: '2026-09-01',
+            priceHistory: [{ at: '2026-09-01', price: -1 }],
+          },
+        ],
+      },
+    });
+
+    expect(res.json.error.code).toBe('BAD_REQUEST');
+  });
+
   it('PUT은 컬렉션 전체를 교체한다', async () => {
     const token = await login();
     await call(POST, 'data?collection=wishlist', {
