@@ -51,6 +51,25 @@ export function formatWon(amount: number): string {
   return `${amount.toLocaleString('ko-KR')}원`;
 }
 
+/** 달력 칸처럼 좁은 곳에 쓰는 짧은 금액. 예: 8,000 / 1.2만 / 3억 */
+export function formatShortWon(amount: number): string {
+  const trim = (n: number) => String(Math.round(n * 10) / 10);
+  if (amount >= 100_000_000) return `${trim(amount / 100_000_000)}억`;
+  if (amount >= 10_000) return `${trim(amount / 10_000)}만`;
+  return amount.toLocaleString('ko-KR');
+}
+
+/** 날짜별 수입·지출 합계 */
+export function dailyTotals(entries: LedgerEntry[]): Map<string, { income: number; expense: number }> {
+  const map = new Map<string, { income: number; expense: number }>();
+  for (const entry of entries) {
+    const day = map.get(entry.date) ?? { income: 0, expense: 0 };
+    day[entry.type] += entry.amount;
+    map.set(entry.date, day);
+  }
+  return map;
+}
+
 /** 그 달에 적용되는 고정 항목을 내역으로 만든다. 없는 날(예: 2월 31일)은 말일로 맞춘다. */
 export function fixedEntriesForMonth(items: FixedItem[], month: MonthKey): LedgerEntry[] {
   const [y, m] = month.split('-').map(Number);

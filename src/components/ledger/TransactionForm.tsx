@@ -5,6 +5,7 @@ import Modal from '../common/Modal';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { LedgerType, Transaction } from '../../types';
 import { parseAmount } from '../../utils/ledger';
+import AmountInput from './AmountInput';
 import LedgerTypeFields from './LedgerTypeFields';
 
 interface TransactionFormProps {
@@ -51,29 +52,29 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
         category={form.category}
         onChange={(v) => setForm((f) => ({ ...f, ...v }))}
       />
-      <Input
-        inputMode="numeric"
-        aria-label="금액"
-        placeholder="금액 (원) *"
+      <AmountInput
         value={form.amount}
-        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-        className="text-sm"
+        type={form.type}
+        onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
+        onEnter={handleSubmit}
       />
-      <Input
-        type="date"
-        aria-label="날짜"
-        value={form.date}
-        onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
-        className="text-sm"
-      />
-      <Input
-        aria-label="메모"
-        placeholder="메모 (선택)"
-        value={form.memo}
-        onChange={(e) => setForm((f) => ({ ...f, memo: e.target.value }))}
-        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-        className="text-sm"
-      />
+      <div className="grid grid-cols-[auto_1fr] gap-2">
+        <Input
+          type="date"
+          aria-label="날짜"
+          value={form.date}
+          onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
+          className="text-sm w-auto"
+        />
+        <Input
+          aria-label="메모"
+          placeholder="메모 (선택)"
+          value={form.memo}
+          onChange={(e) => setForm((f) => ({ ...f, memo: e.target.value }))}
+          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSubmit()}
+          className="text-sm"
+        />
+      </div>
       <div className="flex gap-2 pt-2">
         {transaction && (
           <Button

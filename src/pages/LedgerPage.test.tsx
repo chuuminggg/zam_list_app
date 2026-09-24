@@ -72,6 +72,28 @@ describe('LedgerPage', () => {
     expect(total('잔액')).toBe('3,000,000원');
   });
 
+  it('달력에서 날짜를 누르면 그날 내역만 보이고, 다시 누르면 전체로 돌아간다', async () => {
+    useLedgerStore.setState({
+      transactions: [
+        { id: 'a', type: 'expense', amount: 12000, category: 'food', date: '2026-09-24', memo: '점심', createdAt: 'x' },
+        { id: 'b', type: 'expense', amount: 4500, category: 'cafe', date: '2026-09-10', memo: '커피', createdAt: 'x' },
+      ],
+    });
+    render(<LedgerPage />);
+    const day = screen.getByRole('button', { name: '9월 24일, 지출 12,000원' });
+    expect(within(day).getByText('-1.2만')).toBeTruthy();
+
+    await userEvent.click(day);
+    const list = screen.getByRole('region', { name: '내역' });
+    expect(within(list).getByText('점심')).toBeTruthy();
+    expect(within(list).queryByText('커피')).toBeNull();
+    // 요약은 여전히 한 달 전체 기준
+    expect(total('지출 합계')).toBe('16,500원');
+
+    await userEvent.click(day);
+    expect(within(screen.getByRole('region', { name: '내역' })).getByText('커피')).toBeTruthy();
+  });
+
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {
     render(<LedgerPage />);
     await userEvent.click(screen.getByRole('button', { name: '고정 항목' }));

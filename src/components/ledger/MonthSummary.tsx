@@ -1,41 +1,56 @@
 import { formatWon, type MonthSummary as Summary } from '../../utils/ledger';
 
-const CARD = 'rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 p-3 min-w-0';
-const LABEL = 'text-xs text-gray-500 dark:text-gray-400';
-const VALUE = 'mt-1 text-base sm:text-lg font-bold truncate';
-const SUB = 'mt-0.5 text-[11px] text-gray-400 dark:text-gray-500 truncate';
+const PILL = 'flex-1 min-w-0 rounded-xl bg-gray-50 dark:bg-gray-900/60 px-3 py-2';
+const PILL_LABEL = 'text-[11px] text-gray-500 dark:text-gray-400';
+const PILL_VALUE = 'text-sm font-semibold tabular-nums truncate';
 
-/** 이번 달 수입 · 지출 · 잔액 카드 */
-export default function MonthSummary({ summary }: { summary: Summary }) {
-  const { income, expense, fixedIncome, fixedExpense, balance } = summary;
+/** 이번 달 지출을 크게, 수입·잔액을 그 아래 작게 보여준다. */
+export default function MonthSummary({ summary, monthLabel }: { summary: Summary; monthLabel: string }) {
+  const { income, expense, fixedExpense, balance } = summary;
+  const variable = expense - fixedExpense;
+  const fixedRatio = expense > 0 ? (fixedExpense / expense) * 100 : 0;
+
   return (
-    <section className="grid grid-cols-3 gap-2" aria-label="월 요약">
-      <div className={CARD}>
-        <p className={LABEL}>수입</p>
-        <p className={`${VALUE} text-blue-600 dark:text-blue-400`} aria-label="수입 합계">
-          {formatWon(income)}
-        </p>
-        <p className={SUB}>고정 {formatWon(fixedIncome)}</p>
-      </div>
-      <div className={CARD}>
-        <p className={LABEL}>지출</p>
-        <p className={`${VALUE} text-gray-900 dark:text-white`} aria-label="지출 합계">
+    <section aria-label="월 요약" className="space-y-3">
+      <div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">{monthLabel} 지출</p>
+        <p
+          className="text-3xl font-bold tracking-tight tabular-nums text-gray-900 dark:text-white"
+          aria-label="지출 합계"
+        >
           {formatWon(expense)}
         </p>
-        <p className={SUB}>
-          고정 {formatWon(fixedExpense)} · 변동 {formatWon(expense - fixedExpense)}
-        </p>
       </div>
-      <div className={CARD}>
-        <p className={LABEL}>잔액</p>
-        <p
-          className={`${VALUE} ${balance < 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}
-          aria-label="잔액"
-        >
-          {balance < 0 ? '-' : ''}
-          {formatWon(Math.abs(balance))}
-        </p>
-        <p className={SUB}>수입 − 지출</p>
+
+      {expense > 0 && (
+        <div className="space-y-1">
+          <div className="h-1.5 rounded-full bg-indigo-200 dark:bg-indigo-900 overflow-hidden" aria-hidden="true">
+            <div className="h-full bg-indigo-500" style={{ width: `${fixedRatio}%` }} />
+          </div>
+          <p className="flex justify-between text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">
+            <span>고정 {formatWon(fixedExpense)}</span>
+            <span>변동 {formatWon(variable)}</span>
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <div className={PILL}>
+          <p className={PILL_LABEL}>수입</p>
+          <p className={`${PILL_VALUE} text-blue-600 dark:text-blue-400`} aria-label="수입 합계">
+            {formatWon(income)}
+          </p>
+        </div>
+        <div className={PILL}>
+          <p className={PILL_LABEL}>잔액</p>
+          <p
+            className={`${PILL_VALUE} ${balance < 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-900 dark:text-white'}`}
+            aria-label="잔액"
+          >
+            {balance < 0 ? '-' : ''}
+            {formatWon(Math.abs(balance))}
+          </p>
+        </div>
       </div>
     </section>
   );
