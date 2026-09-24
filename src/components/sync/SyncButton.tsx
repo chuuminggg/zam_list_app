@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { PASSWORD_MAX, PASSWORD_MIN, USERNAME_PATTERN } from '../../../shared/data';
+import { PASSWORD_MAX, USERNAME_PATTERN, passwordPolicyError } from '../../../shared/data';
 import { useSyncStore, type SyncStatus } from '../../stores/syncStore';
 import { retrySync, signIn, signOut } from '../../sync/sync';
 import Button from '../common/Button';
@@ -105,8 +105,10 @@ function SignInForm({ onClose }: { onClose: () => void }) {
   const [confirmNew, setConfirmNew] = useState<string | null>(null);
   const valid =
     USERNAME_PATTERN.test(username.trim().toLowerCase()) &&
-    password.length >= PASSWORD_MIN &&
+    password.length >= 1 &&
     password.length <= PASSWORD_MAX;
+  /** 새 계정을 만들 때만 적용하는 비밀번호 규칙 */
+  const policyError = confirmNew ? passwordPolicyError(password) : null;
 
   const send = async (create: boolean) => {
     if (!valid || submitting) return;
@@ -139,12 +141,13 @@ function SignInForm({ onClose }: { onClose: () => void }) {
           이미 쓰던 계정이 있다면 아이디에 오타가 없는지 확인하세요. 계정을 새로 만들면 목록이 두 개로 갈라져서 다른
           기기에서 적은 내용이 보이지 않아요.
         </p>
+        {policyError && <p className="text-sm text-red-600 dark:text-red-400">{policyError}</p>}
         {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => setConfirmNew(null)} disabled={submitting}>
-            아이디 다시 입력
+            {policyError ? '다시 입력' : '아이디 다시 입력'}
           </Button>
-          <Button type="button" onClick={() => void send(true)} disabled={submitting}>
+          <Button type="button" onClick={() => void send(true)} disabled={submitting || policyError !== null}>
             {submitting ? '만드는 중…' : '새 계정 만들기'}
           </Button>
         </div>
@@ -181,7 +184,7 @@ function SignInForm({ onClose }: { onClose: () => void }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
-          placeholder={`${PASSWORD_MIN}자 이상`}
+          placeholder="새 계정은 영문·숫자·특수문자 섞어 8자 이상"
           maxLength={PASSWORD_MAX}
         />
       </div>

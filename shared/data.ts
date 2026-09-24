@@ -128,8 +128,32 @@ export interface AuthUser {
 
 /** 아이디: 한글·영문 소문자·숫자·_·- 2~20자 (대소문자는 구분하지 않는다) */
 export const USERNAME_PATTERN = /^[a-z0-9가-힣_-]{2,20}$/;
-export const PASSWORD_MIN = 4;
 export const PASSWORD_MAX = 100;
+/** 새 계정 비밀번호 최소 길이. 기존 계정은 예전 규칙으로 만든 비밀번호로도 로그인할 수 있다. */
+export const PASSWORD_MIN = 8;
+
+/**
+ * 새 계정 비밀번호 규칙 (KISA 가이드 기준): 영문·숫자·특수문자 중 3종류 이상 8자 이상,
+ * 또는 2종류 이상 10자 이상. 규칙에 맞으면 null, 아니면 안내 문구를 돌려준다.
+ */
+export function passwordPolicyError(password: string): string | null {
+  const kinds = [/[A-Za-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
+  if (password.length > PASSWORD_MAX) return `비밀번호는 ${PASSWORD_MAX}자 이하여야 해요.`;
+  if ((kinds >= 3 && password.length >= PASSWORD_MIN) || (kinds >= 2 && password.length >= 10)) return null;
+  return '비밀번호는 영문·숫자·특수문자를 모두 섞어 8자 이상, 또는 두 종류를 섞어 10자 이상이어야 해요.';
+}
+
+/**
+ * 링크·이미지 주소를 http(s)로 정리한다. 스킴이 없으면 https://를 붙이고,
+ * javascript: 같은 다른 스킴이거나 비어 있으면 undefined.
+ */
+export function safeHttpUrl(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^[a-z][a-z0-9+-]*:/i.test(trimmed)) return undefined;
+  return `https://${trimmed.replace(/^\/+/, '')}`;
+}
 
 /** 컬렉션당 최대 항목 수 */
 export const MAX_ITEMS_PER_COLLECTION = 1000;

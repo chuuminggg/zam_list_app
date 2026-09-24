@@ -2,6 +2,7 @@ import { SEARCH_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
 import {
   MAX_LEDGER_AMOUNT,
   MAX_PRICE_HISTORY,
+  safeHttpUrl,
   type Category,
   type CollectionId,
   type CollectionItem,
@@ -138,10 +139,11 @@ export function parseWishItem(value: unknown): WishItem {
   return compact({
     id: id(obj),
     name: str(obj, 'name', 300, 1),
-    url: optStr(obj, 'url', 2000),
+    // 허용하지 않는 스킴은 항목을 버리지 않고 링크만 뺀다 (예전에 저장된 항목도 읽히도록).
+    url: safeHttpUrl(optStr(obj, 'url', 2000)),
     price: obj.price == null ? undefined : (obj.price as number),
     memo: optStr(obj, 'memo', 2000),
-    imageUrl: optStr(obj, 'imageUrl', 2000),
+    imageUrl: safeHttpUrl(optStr(obj, 'imageUrl', 2000)),
     status: oneOf(obj, 'status', ['want', 'bought', 'dropped'] as const),
     category: str(obj, 'category', 50),
     createdAt: str(obj, 'createdAt', 40, 1),

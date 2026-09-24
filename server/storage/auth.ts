@@ -1,6 +1,6 @@
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
-import { PASSWORD_MAX, PASSWORD_MIN, USERNAME_PATTERN, type AuthUser } from '../../shared/data.js';
+import { PASSWORD_MAX, USERNAME_PATTERN, passwordPolicyError, type AuthUser } from '../../shared/data.js';
 import { ApiException } from '../errors.js';
 import type { Db } from './db.js';
 
@@ -9,6 +9,10 @@ const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen
 /** 로그인 세션 유효 기간 */
 const SESSION_DAYS = 180;
 const KEY_LENGTH = 32;
+/** 연속으로 이만큼 틀리면 아이디를 잠근다. */
+const MAX_LOGIN_FAILURES = 5;
+const LOCK_MINUTES = 15;
+const LOCKED_MESSAGE = `로그인에 ${MAX_LOGIN_FAILURES}번 실패해서 ${LOCK_MINUTES}분 동안 잠겼어요. 잠시 뒤에 다시 시도하세요.`;
 
 /** `scrypt$<salt>$<hash>` (base64url) */
 async function hashPassword(password: string): Promise<string> {
@@ -36,11 +40,31 @@ export function normalizeUsername(value: unknown): string {
   return username;
 }
 
+/** 로그인용 형식 검사. 새 계정 규칙(passwordPolicyError)은 계정을 만들 때만 적용한다. */
 export function checkPassword(value: unknown): string {
-  if (typeof value !== 'string' || value.length < PASSWORD_MIN || value.length > PASSWORD_MAX) {
-    throw new ApiException('BAD_REQUEST', `비밀번호는 ${PASSWORD_MIN}~${PASSWORD_MAX}자여야 해요.`);
+  if (typeof value !== 'string' || value.length < 1 || value.length > PASSWORD_MAX) {
+    throw new ApiException('BAD_REQUEST', `비밀번호는 1~${PASSWORD_MAX}자여야 해요.`);
   }
   return value;
+}
+
+async function isLocked(db: Db, username: string): Promise<boolean> {
+  const rows = await db.query('SELECT 1 FROM login_attempts WHERE username = $1 AND locked_until > now()', [username]);
+  return rows.length > 0;
+}
+
+/** 실패 횟수를 늘리고, 한도에 닿으면 횟수를 비우고 잠근다. 이번 실패로 잠겼으면 true. */
+async function recordFailure(db: Db, username: string): Promise<boolean> {
+  const [row] = await db.query<{ locked: boolean }>(
+    `INSERT INTO login_attempts (username, failures) VALUES ($1, 1)
+     ON CONFLICT (username) DO UPDATE SET
+       failures = CASE WHEN login_attempts.failures + 1 >= $2 THEN 0 ELSE login_attempts.failures + 1 END,
+       locked_until = CASE WHEN login_attempts.failures + 1 >= $2
+         THEN now() + make_interval(mins => $3) ELSE login_attempts.locked_until END
+     RETURNING coalesce(locked_until > now(), false) AS locked`,
+    [username, MAX_LOGIN_FAILURES, LOCK_MINUTES],
+  );
+  return row?.locked ?? false;
 }
 
 interface UserRow {
@@ -68,11 +92,17 @@ export async function signIn(
   let created = false;
 
   if (user) {
+    // 잠긴 동안에는 비밀번호를 확인하지 않아 추측 시도가 쌓이지 않게 한다.
+    if (await isLocked(db, username)) throw new ApiException('RATE_LIMITED', LOCKED_MESSAGE);
     if (!(await verifyPassword(password, user.password_hash))) {
+      if (await recordFailure(db, username)) throw new ApiException('RATE_LIMITED', LOCKED_MESSAGE);
       throw new ApiException('UNAUTHORIZED', '비밀번호가 맞지 않아요.');
     }
+    await db.query('DELETE FROM login_attempts WHERE username = $1', [username]);
   } else {
     if (!create) return { status: 'new', username };
+    const policyError = passwordPolicyError(password);
+    if (policyError) throw new ApiException('BAD_REQUEST', policyError);
     const inserted = await db.query<UserRow>(
       `INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)
        ON CONFLICT (username) DO NOTHING

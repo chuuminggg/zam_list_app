@@ -35,6 +35,14 @@ const SCHEMA: Statement[] = [
     )`,
   },
   {
+    // 아이디별 연속 로그인 실패 횟수와 잠금 해제 시각
+    text: `CREATE TABLE IF NOT EXISTS login_attempts (
+      username text PRIMARY KEY,
+      failures int NOT NULL DEFAULT 0,
+      locked_until timestamptz
+    )`,
+  },
+  {
     text: `CREATE TABLE IF NOT EXISTS items (
       user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       collection text NOT NULL,

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { safeHttpUrl } from '../../../shared/data';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
@@ -54,10 +55,10 @@ export default function WishForm({ open, onClose, item }: WishFormProps) {
     if (!form.name.trim()) return;
     const payload = {
       name: form.name.trim(),
-      url: form.url.trim() || undefined,
+      url: safeHttpUrl(form.url),
       price: form.price ? Number(form.price) : undefined,
       memo: form.memo.trim() || undefined,
-      imageUrl: form.imageUrl.trim() || undefined,
+      imageUrl: safeHttpUrl(form.imageUrl),
       category: form.category.trim(),
       status: form.status,
     };
