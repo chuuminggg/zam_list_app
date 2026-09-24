@@ -1,3 +1,4 @@
+import { randomBytes, scryptSync } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Todo } from '../../shared/data.js';
 import * as auth from '../../api/auth.js';
@@ -6,6 +7,9 @@ import { ensureSchema } from './db.js';
 import { createTestDb } from './testDb.js';
 
 let db: ReturnType<typeof createTestDb> | null = null;
+
+/** 새 계정 규칙(3종류 8자 이상)을 만족하는 비밀번호 */
+const PW = 'zam-pass1';
 
 // 테스트에서는 Neon 대신 메모리 Postgres(PGlite)를 쓴다. db가 null이면 원래 동작(환경변수 확인).
 vi.mock('./db.js', async (importOriginal) => {
@@ -51,7 +55,7 @@ function call(
   ).then(async (res) => ({ status: res.status, json: (await res.json()) as any }));
 }
 
-async function login(username = 'zam', password = '1234'): Promise<string> {
+async function login(username = 'zam', password = PW): Promise<string> {
   const res = await call(auth.POST, 'auth', { body: { username, password, create: true } });
   expect(res.status).toBe(200);
   return res.json.data.token;
@@ -70,16 +74,16 @@ afterEach(async () => {
 
 describe('/api/auth', () => {
   it('없는 아이디는 확인 전까지 계정을 만들지 않는다', async () => {
-    const asked = await call(auth.POST, 'auth', { body: { username: 'zam', password: '1234' } });
+    const asked = await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } });
     expect(asked.json.data).toEqual({ status: 'new', username: 'zam' });
     expect(await db!.query('SELECT username FROM users')).toEqual([]);
   });
 
   it('확인하면 계정을 만들고, 같은 비밀번호로 다시 로그인된다', async () => {
-    const first = await call(auth.POST, 'auth', { body: { username: 'Zam', password: '1234', create: true } });
+    const first = await call(auth.POST, 'auth', { body: { username: 'Zam', password: PW, create: true } });
     expect(first.json.data).toMatchObject({ status: 'signedIn', created: true, user: { username: 'zam' } });
 
-    const again = await call(auth.POST, 'auth', { body: { username: 'zam', password: '1234' } });
+    const again = await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } });
     expect(again.json.data).toMatchObject({ created: false, user: { id: first.json.data.user.id } });
 
     const me = await call(auth.GET, 'auth', { token: again.json.data.token });
@@ -87,19 +91,60 @@ describe('/api/auth', () => {
   });
 
   it('비밀번호가 틀리면 401, 형식이 틀리면 400', async () => {
-    await login('zam', '1234');
-    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: '9999' } })).status).toBe(401);
-    expect((await call(auth.POST, 'auth', { body: { username: 'z', password: '1234' } })).status).toBe(400);
-    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: '12' } })).status).toBe(400);
+    await login('zam', PW);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: 'wrong-pw-1' } })).status).toBe(401);
+    expect((await call(auth.POST, 'auth', { body: { username: 'z', password: PW } })).status).toBe(400);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: '' } })).status).toBe(400);
+  });
+
+  it('새 계정은 비밀번호 규칙을 지켜야 한다', async () => {
+    for (const password of ['1234', 'abcdefgh', 'abcd1234']) {
+      const res = await call(auth.POST, 'auth', { body: { username: 'zam', password, create: true } });
+      expect(res.status).toBe(400);
+    }
+    expect(await db!.query('SELECT username FROM users')).toEqual([]);
+    // 두 종류라도 10자 이상이면 된다.
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: 'abcde12345', create: true } })).status).toBe(200);
+  });
+
+  it('예전 규칙으로 만든 짧은 비밀번호로도 로그인된다', async () => {
+    await login('zam', PW);
+    const salt = randomBytes(16);
+    const hash = scryptSync('1234', salt, 32);
+    await db!.query('UPDATE users SET password_hash = $1', [
+      `scrypt$${salt.toString('base64url')}$${hash.toString('base64url')}`,
+    ]);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: '1234' } })).status).toBe(200);
+  });
+
+  it('5번 연속 틀리면 잠기고, 잠긴 동안에는 맞는 비밀번호도 막는다', async () => {
+    await login('zam', PW);
+    const wrong = () => call(auth.POST, 'auth', { body: { username: 'zam', password: 'wrong-pw-1' } });
+    for (let i = 0; i < 4; i++) expect((await wrong()).status).toBe(401);
+    expect((await wrong()).status).toBe(429);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } })).status).toBe(429);
+
+    // 잠금이 풀리면 다시 로그인되고, 성공하면 실패 기록이 지워진다.
+    await db!.query(`UPDATE login_attempts SET locked_until = now() - interval '1 minute'`);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } })).status).toBe(200);
+    expect(await db!.query('SELECT * FROM login_attempts')).toEqual([]);
+  });
+
+  it('로그인에 성공하면 실패 횟수가 초기화된다', async () => {
+    await login('zam', PW);
+    const wrong = () => call(auth.POST, 'auth', { body: { username: 'zam', password: 'wrong-pw-1' } });
+    for (let i = 0; i < 4; i++) await wrong();
+    await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } });
+    for (let i = 0; i < 4; i++) expect((await wrong()).status).toBe(401);
   });
 
   it('비밀번호와 세션 토큰 원문은 저장하지 않는다', async () => {
-    const token = await login('zam', 'secret-pw');
+    const token = await login('zam', 'secret-pw-123');
     const dump = JSON.stringify([
       ...(await db!.query('SELECT * FROM users')),
       ...(await db!.query('SELECT * FROM sessions')),
     ]);
-    expect(dump).not.toContain('secret-pw');
+    expect(dump).not.toContain('secret-pw-123');
     expect(dump).not.toContain(token);
   });
 
@@ -124,13 +169,13 @@ describe('/api/data', () => {
   });
 
   it('사용자별로 데이터가 나뉘고, 같은 계정이면 다른 기기에서도 같은 데이터를 본다', async () => {
-    const mine = await login('zam', '1234');
+    const mine = await login('zam', PW);
     await call(POST, 'data?collection=todos', { token: mine, body: { items: [todo('a', '2026-09-01')] } });
 
-    const other = await login('other', '1234');
+    const other = await login('other', PW);
     expect((await call(GET, 'data?collection=todos', { token: other })).json.data.items).toEqual([]);
 
-    const otherDevice = await login('zam', '1234');
+    const otherDevice = await login('zam', PW);
     expect((await call(GET, 'data?collection=todos', { token: otherDevice })).json.data.items).toHaveLength(1);
   });
 
@@ -168,6 +213,21 @@ describe('/api/data', () => {
         { at: '2026-09-24T06:00:00.000Z', price: 4000 },
       ],
     });
+  });
+
+  it('링크는 http(s)만 저장하고, 스킴이 없으면 https를 붙인다', async () => {
+    const token = await login();
+    const wish = (id: string, url: string) => ({ id, name: id, url, imageUrl: url, status: 'want', category: '', createdAt: id });
+    await call(POST, 'data?collection=wishlist', {
+      token,
+      body: { items: [wish('a', 'javascript:alert(1)'), wish('b', 'shop.example.com/1'), wish('c', 'http://x.kr')] },
+    });
+    const items = (await call(GET, 'data?collection=wishlist', { token })).json.data.items;
+    expect(items.map((w: { url?: string; imageUrl?: string }) => [w.url, w.imageUrl])).toEqual([
+      [undefined, undefined],
+      ['https://shop.example.com/1', 'https://shop.example.com/1'],
+      ['http://x.kr', 'http://x.kr'],
+    ]);
   });
 
   it('가격 이력 형식이 틀리면 거부한다', async () => {

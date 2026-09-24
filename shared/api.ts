@@ -5,6 +5,7 @@
 export type ApiErrorCode =
   | 'BAD_REQUEST'
   | 'UNAUTHORIZED'
+  | 'RATE_LIMITED'
   | 'NOT_FOUND'
   | 'NOT_CONFIGURED'
   | 'PROVIDER_DISABLED'
