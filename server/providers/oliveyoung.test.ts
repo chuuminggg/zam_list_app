@@ -126,24 +126,65 @@ describe('올리브영 호출', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('재고는 상품명으로 다시 검색해 같은 상품번호의 전체 매장 기준 재고를 보여준다', async () => {
+  const inventory = (products: unknown[]) => Response.json({ success: true, data: { inventory: { products } } });
+
+  it('재고는 상품명·매장 검색어로 /inventory를 불러 같은 상품번호의 매장별 재고를 보여준다', async () => {
     const fetch = mockFetch(
-      ok([{ goodsNumber: 'A0', inStock: true }, { goodsNumber: 'A1', inStock: false }]),
+      inventory([
+        { goodsNumber: 'A0', storeInventory: { stores: [{ storeCode: 'X', stockStatus: 'in_stock' }] } },
+        {
+          goodsNumber: 'A1',
+          storeInventory: {
+            stores: [
+              { storeCode: 'D1', storeName: '잠실점', address: '서울 송파구', pickupYn: false, stockStatus: 'in_stock', stockLabel: '재고 3개' },
+              { storeCode: 'D2', storeName: '잠실역점', address: '', pickupYn: true, stockStatus: 'not_sold', stockLabel: '미판매' },
+              { storeCode: 'D3', storeName: '석촌점', stockStatus: 'out_of_stock' },
+            ],
+          },
+        },
+      ]),
     );
+    const result = await checkOliveyoungStock('A1', '잠실', 2, '롬앤 틴트');
+
+    expect(result.stores).toEqual([
+      { provider: 'oliveyoung', storeCode: 'D1', name: '잠실점', address: '서울 송파구', pickup: false, status: 'in_stock', label: '재고 3개' },
+      { provider: 'oliveyoung', storeCode: 'D2', name: '잠실역점', address: '', pickup: true, status: 'not_sold', label: '미판매' },
+    ]);
+    expect(result.summary).toBeUndefined();
+    expect(result.notice).toBeUndefined();
+    const url = new URL(fetch.mock.calls[0][0] as string);
+    expect(url.pathname).toBe('/api/oliveyoung/inventory');
+    expect(url.searchParams.get('keyword')).toBe('롬앤 틴트');
+    expect(url.searchParams.get('storeKeyword')).toBe('잠실');
+  });
+
+  it('매장 재고를 확인하지 못한 상품이면 전체 매장 기준 재고로 대신한다', async () => {
+    mockFetch(inventory([{ goodsNumber: 'A1', inStock: false }]));
     const result = await checkOliveyoungStock('A1', '강남', 10, '롬앤 틴트');
 
     expect(result.stores).toEqual([]);
     expect(result.summary).toEqual({ status: 'out_of_stock', label: '매장 재고 없음' });
     expect(result.notice).toContain('매장별 재고');
-    expect(new URL(fetch.mock.calls[0][0] as string).searchParams.get('keyword')).toBe('롬앤 틴트');
   });
 
-  it('상품명이 없거나 검색이 실패하면 확인 불가로 표시한다', async () => {
+  it('/inventory가 실패하면 상품 검색으로 전체 매장 기준 재고를 확인한다', async () => {
+    const fetch = mockFetch(
+      Response.json({ success: false, error: { code: 'OLIVEYOUNG_STORE_ERROR' } }, { status: 400 }),
+      ok([{ goodsNumber: 'A1', inStock: true }]),
+    );
+    const result = await checkOliveyoungStock('A1', '강남', 10, '롬앤 틴트');
+
+    expect(result.summary).toEqual({ status: 'in_stock', label: '매장 재고 있음' });
+    expect(new URL(fetch.mock.calls[1][0] as string).pathname).toBe('/api/oliveyoung/products');
+  });
+
+  it('상품명이 없거나 조회가 모두 실패하면 확인 불가로 표시한다', async () => {
     vi.useFakeTimers();
     const fail = () => new Response('error', { status: 500 });
-    const fetch = mockFetch(fail(), fail(), fail());
+    const fetch = mockFetch(fail(), fail(), fail(), fail(), fail(), fail());
     expect((await checkOliveyoungStock('A1', '강남', 10)).summary).toEqual({ status: 'unknown', label: '재고 확인 불가' });
     expect(fetch).not.toHaveBeenCalled();
     expect((await settle(checkOliveyoungStock('A1', '강남', 10, '틴트'))).summary?.status).toBe('unknown');
+    expect(fetch).toHaveBeenCalledTimes(6);
   });
 });

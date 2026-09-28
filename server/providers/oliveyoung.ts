@@ -3,7 +3,7 @@
  * 올리브영은 Vercel(AWS)에서 보내는 직접 요청을 403으로 막으므로
  * daiso-mcp(MIT, github.com/hmmhmmhm/daiso-mcp)의 호스팅 API(Cloudflare Workers)를 경유한다.
  */
-import type { ProductResult, StockResult, StockStatus } from '../../shared/api.js';
+import type { ProductResult, StockResult, StockStatus, StoreStock } from '../../shared/api.js';
 import { ApiException } from '../errors.js';
 
 const MCP_BASE_URL = 'https://mcp.aka.page';
@@ -34,8 +34,20 @@ interface RawProduct {
   discountRate?: number;
   o2oStockFlag?: boolean;
   o2oRemainQuantity?: number;
-  /** 호스팅 API가 계산한 재고 여부 (전체 매장 기준) */
+  /** 호스팅 API가 계산한 재고 여부 (전체 매장 기준, 매장별 재고를 확인했으면 주변 매장 기준) */
   inStock?: boolean;
+  /** /inventory 응답에서 주변 매장 재고를 확인한 상품에만 붙는다 */
+  storeInventory?: { stores?: RawStoreStock[] };
+}
+
+interface RawStoreStock {
+  storeCode?: string;
+  storeName?: string;
+  address?: string;
+  pickupYn?: boolean;
+  stockStatus?: 'in_stock' | 'out_of_stock' | 'not_sold';
+  /** '재고 3개', '재고 9개 이상', '품절', '미판매' */
+  stockLabel?: string;
 }
 
 // ---- 파서 (fixture 테스트 대상) ----
@@ -75,6 +87,29 @@ export function parseOliveyoungProducts(data: { products?: RawProduct[] } = {}):
     });
 }
 
+const STORE_STATUS_LABEL: Record<NonNullable<RawStoreStock['stockStatus']>, string> = {
+  in_stock: '재고 있음',
+  out_of_stock: '품절',
+  not_sold: '미판매',
+};
+
+export function parseOliveyoungStoreStocks(stores: RawStoreStock[] = []): StoreStock[] {
+  return stores
+    .filter((s) => s.storeCode)
+    .map((s) => {
+      const status: StockStatus = s.stockStatus ?? 'unknown';
+      return {
+        provider: 'oliveyoung',
+        storeCode: s.storeCode!,
+        name: s.storeName ?? '',
+        address: s.address ?? '',
+        pickup: Boolean(s.pickupYn),
+        status,
+        label: s.stockLabel || (s.stockStatus ? STORE_STATUS_LABEL[s.stockStatus] : '재고 확인 불가'),
+      };
+    });
+}
+
 /** 상품 검색 결과의 재고 여부를 매장별 재고 대신 쓸 요약으로 바꾼다. */
 export function summarizeOliveyoungProductStock(product?: RawProduct): { status: StockStatus; label: string } {
   if (!product) return { status: 'unknown', label: '재고 확인 불가' };
@@ -85,13 +120,13 @@ export function summarizeOliveyoungProductStock(product?: RawProduct): { status:
 
 // ---- 호출 ----
 
-type ProductsAttempt = { products: RawProduct[] } | { error: ApiException; retryable: boolean };
+type HostedAttempt<T> = { data: T } | { error: ApiException; retryable: boolean };
 
 /**
  * 호스팅 API를 한 번 호출한다. 실패해도 JSON 본문에 이유(error.code, diagnostics.retryable)를
  * 담아 주므로 상태 코드와 상관없이 본문을 읽어 다시 시도할지 정한다.
  */
-async function requestProducts(url: string): Promise<ProductsAttempt> {
+async function requestHosted<T>(url: string): Promise<HostedAttempt<T>> {
   let response: Response;
   try {
     response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
@@ -102,8 +137,8 @@ async function requestProducts(url: string): Promise<ProductsAttempt> {
     return { error: new ApiException('UPSTREAM_ERROR', '올리브영에 연결할 수 없습니다.'), retryable: true };
   }
 
-  const body = (await response.json().catch(() => undefined)) as McpEnvelope<{ products?: RawProduct[] }> | undefined;
-  if (response.ok && body?.success && body.data) return { products: body.data.products ?? [] };
+  const body = (await response.json().catch(() => undefined)) as McpEnvelope<T> | undefined;
+  if (response.ok && body?.success && body.data) return { data: body.data };
 
   const code = body?.error?.code;
   if (code === DAILY_LIMIT_CODE) {
@@ -123,47 +158,74 @@ async function requestProducts(url: string): Promise<ProductsAttempt> {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function fetchProducts(keyword: string, size: number): Promise<RawProduct[]> {
-  const params = new URLSearchParams({ keyword, size: String(size), includeSoldOut: 'true' });
-  const url = `${MCP_BASE_URL}/api/oliveyoung/products?${params}`;
+async function fetchHosted<T>(path: string, params: Record<string, string>): Promise<T> {
+  const url = `${MCP_BASE_URL}/api/oliveyoung/${path}?${new URLSearchParams(params)}`;
   // 성공한 검색어는 호스팅 서버에 5분간 캐시되므로, 처음 찾는 검색어일수록 일시적 차단을 만나기 쉽다.
   for (let attempt = 0; ; attempt++) {
-    const result = await requestProducts(url);
-    if ('products' in result) return result.products;
+    const result = await requestHosted<T>(url);
+    if ('data' in result) return result.data;
     if (!result.retryable || attempt >= RETRY_DELAYS_MS.length) throw result.error;
     await sleep(RETRY_DELAYS_MS[attempt]);
   }
+}
+
+async function fetchProducts(keyword: string, size: number): Promise<RawProduct[]> {
+  const data = await fetchHosted<{ products?: RawProduct[] }>('products', {
+    keyword,
+    size: String(size),
+    includeSoldOut: 'true',
+  });
+  return data.products ?? [];
 }
 
 export async function searchOliveyoungProducts(query: string, limit: number): Promise<ProductResult[]> {
   return parseOliveyoungProducts({ products: await fetchProducts(query, limit) });
 }
 
+/** 상품번호로는 검색되지 않아 상품명으로 다시 찾는다. 호스팅 API는 검색 결과 앞 5개까지만 매장 재고를 확인한다. */
+const INVENTORY_SEARCH_SIZE = 10;
+const INVENTORY_STOCK_CHECK_LIMIT = 5;
+const FALLBACK_NOTICE = '이 상품의 매장별 재고를 지금은 확인할 수 없어 전체 매장 기준 재고 여부만 보여드려요.';
+
 /**
- * 매장별 재고는 호스팅 API에서도 아직 복구되지 않아(브라우저 릴레이 필요),
- * 상품명으로 다시 검색해 전체 매장 기준 재고 여부만 보여준다. 상품번호로는 검색되지 않는다.
+ * 상품명과 매장 검색어로 호스팅 API의 /inventory를 불러 같은 상품번호의 주변 매장 재고를 보여준다.
+ * 매장별 재고를 못 구하면(검색 순위 밖, 릴레이 실패) 전체 매장 기준 재고 여부로 대신한다.
  */
 export async function checkOliveyoungStock(
   goodsNumber: string,
-  _storeKeyword: string,
-  _limit: number,
+  storeKeyword: string,
+  limit: number,
   productName?: string,
 ): Promise<StockResult> {
-  let summary = summarizeOliveyoungProductStock(undefined);
-  if (productName) {
+  const base = { provider: 'oliveyoung' as const, productId: goodsNumber, checkedAt: new Date().toISOString() };
+  const fallback = (product?: RawProduct): StockResult => ({
+    ...base,
+    stores: [],
+    summary: summarizeOliveyoungProductStock(product),
+    notice: FALLBACK_NOTICE,
+  });
+  if (!productName) return fallback();
+
+  let product: RawProduct | undefined;
+  try {
+    const data = await fetchHosted<{ inventory?: { products?: RawProduct[] } }>('inventory', {
+      keyword: productName,
+      storeKeyword,
+      size: String(INVENTORY_SEARCH_SIZE),
+      includeSoldOut: 'true',
+      stockCheckLimit: String(INVENTORY_STOCK_CHECK_LIMIT),
+    });
+    product = data.inventory?.products?.find((p) => p.goodsNumber === goodsNumber);
+  } catch {
+    // 매장 재고 조회가 막혀도 상품 검색은 될 수 있으니 전체 매장 기준으로 다시 확인한다.
     try {
-      const products = await fetchProducts(productName, 10);
-      summary = summarizeOliveyoungProductStock(products.find((p) => p.goodsNumber === goodsNumber));
+      product = (await fetchProducts(productName, INVENTORY_SEARCH_SIZE)).find((p) => p.goodsNumber === goodsNumber);
     } catch {
       // 확인 불가로 표시한다.
     }
+    return fallback(product);
   }
-  return {
-    provider: 'oliveyoung',
-    productId: goodsNumber,
-    checkedAt: new Date().toISOString(),
-    stores: [],
-    summary,
-    notice: '올리브영 매장별 재고를 지금은 확인할 수 없어 전체 매장 기준 재고 여부만 보여드려요.',
-  };
+
+  if (!product?.storeInventory) return fallback(product);
+  return { ...base, stores: parseOliveyoungStoreStocks(product.storeInventory.stores).slice(0, limit) };
 }
