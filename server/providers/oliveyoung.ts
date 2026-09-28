@@ -5,14 +5,16 @@
  */
 import type { ProductResult, StockResult, StockStatus } from '../../shared/api.js';
 import { ApiException } from '../errors.js';
-import { fetchJson } from '../http.js';
 
 const MCP_BASE_URL = 'https://mcp.aka.page';
 const IMAGE_HOST = 'https://image.oliveyoung.co.kr';
 const IMAGE_PREFIX = '/uploads/images/goods';
 const PRODUCT_PAGE = 'https://www.oliveyoung.co.kr/store/goods/getGoodsDetail.do?goodsNo=';
 const TIMEOUT_MS = 15000;
-const MAX_ATTEMPTS = 3;
+/** 다시 시도하기 전 기다리는 시간. 길이만큼 다시 시도한다 (최대 3번 호출). */
+const RETRY_DELAYS_MS = [1000, 2000];
+/** 호스팅 API의 IP별 일일 호출 한도 초과 코드. 다시 시도해도 풀리지 않는다. */
+const DAILY_LIMIT_CODE = 'DAILY_RATE_LIMIT_EXCEEDED';
 
 // ---- 원본 응답 타입 (사용하는 필드만) ----
 
@@ -20,6 +22,8 @@ interface McpEnvelope<T> {
   success?: boolean;
   data?: T;
   error?: { code?: string; message?: string };
+  /** 실패 시 호스팅 API가 붙여 주는 진단 정보 */
+  diagnostics?: { retryable?: boolean };
 }
 
 interface RawProduct {
@@ -81,23 +85,54 @@ export function summarizeOliveyoungProductStock(product?: RawProduct): { status:
 
 // ---- 호출 ----
 
+type ProductsAttempt = { products: RawProduct[] } | { error: ApiException; retryable: boolean };
+
+/**
+ * 호스팅 API를 한 번 호출한다. 실패해도 JSON 본문에 이유(error.code, diagnostics.retryable)를
+ * 담아 주므로 상태 코드와 상관없이 본문을 읽어 다시 시도할지 정한다.
+ */
+async function requestProducts(url: string): Promise<ProductsAttempt> {
+  let response: Response;
+  try {
+    response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      return { error: new ApiException('TIMEOUT', '올리브영 응답 시간이 초과되었습니다.'), retryable: false };
+    }
+    return { error: new ApiException('UPSTREAM_ERROR', '올리브영에 연결할 수 없습니다.'), retryable: true };
+  }
+
+  const body = (await response.json().catch(() => undefined)) as McpEnvelope<{ products?: RawProduct[] }> | undefined;
+  if (response.ok && body?.success && body.data) return { products: body.data.products ?? [] };
+
+  const code = body?.error?.code;
+  if (code === DAILY_LIMIT_CODE) {
+    return {
+      error: new ApiException('RATE_LIMITED', '올리브영 조회 한도를 초과했어요. 내일 다시 시도해 주세요.'),
+      retryable: false,
+    };
+  }
+  // 호스팅 서버의 올리브영 릴레이가 간헐적으로 막히면(429·500) 잠깐 뒤 다시 시도하면 풀린다.
+  const retryable = body?.diagnostics?.retryable ?? (response.status >= 500 || response.status === 429);
+  if (response.status === 403) {
+    return { error: new ApiException('BLOCKED', '올리브영에서 요청을 차단했습니다. (403)'), retryable };
+  }
+  const reason = code ?? (response.ok ? 'UNKNOWN' : `HTTP ${response.status}`);
+  return { error: new ApiException('UPSTREAM_ERROR', `올리브영 조회에 실패했습니다. (${reason})`), retryable };
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function fetchProducts(keyword: string, size: number): Promise<RawProduct[]> {
   const params = new URLSearchParams({ keyword, size: String(size), includeSoldOut: 'true' });
   const url = `${MCP_BASE_URL}/api/oliveyoung/products?${params}`;
-  let body: McpEnvelope<{ products?: RawProduct[] }> | undefined;
-  // 호스팅 서버도 올리브영에 간헐적으로 차단되어(500) 성공하면 5분간 캐시되므로 몇 번 다시 시도한다.
-  for (let attempt = 1; !body; attempt++) {
-    try {
-      body = await fetchJson(url, { label: '올리브영', timeoutMs: TIMEOUT_MS });
-    } catch (error) {
-      const retryable = error instanceof ApiException && error.code === 'UPSTREAM_ERROR';
-      if (!retryable || attempt >= MAX_ATTEMPTS) throw error;
-    }
+  // 성공한 검색어는 호스팅 서버에 5분간 캐시되므로, 처음 찾는 검색어일수록 일시적 차단을 만나기 쉽다.
+  for (let attempt = 0; ; attempt++) {
+    const result = await requestProducts(url);
+    if ('products' in result) return result.products;
+    if (!result.retryable || attempt >= RETRY_DELAYS_MS.length) throw result.error;
+    await sleep(RETRY_DELAYS_MS[attempt]);
   }
-  if (!body.success || !body.data) {
-    throw new ApiException('UPSTREAM_ERROR', `올리브영 조회에 실패했습니다. (${body.error?.code ?? 'UNKNOWN'})`);
-  }
-  return body.data.products ?? [];
 }
 
 export async function searchOliveyoungProducts(query: string, limit: number): Promise<ProductResult[]> {
