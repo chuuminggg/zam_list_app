@@ -50,7 +50,9 @@ describe('resolveImageUrl', () => {
 });
 
 describe('올리브영 호출', () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   const ok = (products: unknown[]) => Response.json({ success: true, data: { products } });
   const mockFetch = (...responses: Response[]) => {
@@ -74,14 +76,54 @@ describe('올리브영 호출', () => {
     await expect(searchOliveyoungProducts('선크림', 5)).rejects.toMatchObject({ code: 'UPSTREAM_ERROR' });
   });
 
+  /** 다시 시도 사이의 대기를 건너뛰며 끝까지 기다린다. */
+  async function settle<T>(promise: Promise<T>): Promise<T> {
+    promise.catch(() => {});
+    await vi.runAllTimersAsync();
+    return promise;
+  }
+
+  const relay429 = () =>
+    Response.json(
+      {
+        success: false,
+        error: { code: 'OLIVEYOUNG_RELAY_HTTP_ERROR' },
+        diagnostics: { status: 429, retryable: true },
+      },
+      { status: 429 },
+    );
+
   it('호스팅 서버가 500이면 최대 3번까지 다시 시도한다', async () => {
+    vi.useFakeTimers();
     const fetch = mockFetch(
       new Response('error', { status: 500 }),
       new Response('error', { status: 500 }),
       ok([{ goodsNumber: 'A1', inStock: true }]),
     );
-    expect(await searchOliveyoungProducts('선크림', 5)).toHaveLength(1);
+    expect(await settle(searchOliveyoungProducts('선크림', 5))).toHaveLength(1);
     expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('호스팅 서버의 올리브영 릴레이가 일시적으로 막히면(429) 다시 시도한다', async () => {
+    vi.useFakeTimers();
+    const fetch = mockFetch(relay429(), ok([{ goodsNumber: 'A1', inStock: true }]));
+    expect(await settle(searchOliveyoungProducts('토너패드', 5))).toHaveLength(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('릴레이 429가 계속되면 UPSTREAM_ERROR로 알린다', async () => {
+    vi.useFakeTimers();
+    const fetch = mockFetch(relay429(), relay429(), relay429());
+    await expect(settle(searchOliveyoungProducts('토너패드', 5))).rejects.toMatchObject({ code: 'UPSTREAM_ERROR' });
+    expect(fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('일일 호출 한도를 넘으면 다시 시도하지 않고 RATE_LIMITED', async () => {
+    const fetch = mockFetch(
+      Response.json({ success: false, error: { code: 'DAILY_RATE_LIMIT_EXCEEDED' } }, { status: 429 }),
+    );
+    await expect(searchOliveyoungProducts('선크림', 5)).rejects.toMatchObject({ code: 'RATE_LIMITED' });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('재고는 상품명으로 다시 검색해 같은 상품번호의 전체 매장 기준 재고를 보여준다', async () => {
@@ -97,10 +139,11 @@ describe('올리브영 호출', () => {
   });
 
   it('상품명이 없거나 검색이 실패하면 확인 불가로 표시한다', async () => {
+    vi.useFakeTimers();
     const fail = () => new Response('error', { status: 500 });
     const fetch = mockFetch(fail(), fail(), fail());
     expect((await checkOliveyoungStock('A1', '강남', 10)).summary).toEqual({ status: 'unknown', label: '재고 확인 불가' });
     expect(fetch).not.toHaveBeenCalled();
-    expect((await checkOliveyoungStock('A1', '강남', 10, '틴트')).summary?.status).toBe('unknown');
+    expect((await settle(checkOliveyoungStock('A1', '강남', 10, '틴트'))).summary?.status).toBe('unknown');
   });
 });
