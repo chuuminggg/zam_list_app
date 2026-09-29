@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { PROVIDER_LABEL, type ProductResult, type SearchProviderId } from '../../../shared/api';
+import { COUPANG_AFFILIATE_NOTICE, PROVIDER_LABEL, type ProductResult, type SearchProviderId } from '../../../shared/api';
 import { SEARCH_PROVIDERS, withAvailability } from '../../constants/shopping';
 import { useProviders } from '../../hooks/useProviders';
 import { useWishStore } from '../../stores/wishStore';
@@ -56,6 +56,9 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
         selectedLabel="담김 ✓"
         autoFocus
       />
+      {provider === 'coupang' && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">{COUPANG_AFFILIATE_NOTICE}</p>
+      )}
       <div className="flex items-center gap-3 pt-2">
         {addedCount > 0 && (
           <p className="text-sm text-purple-600 dark:text-purple-400 flex-1">{addedCount}개 담았어요</p>

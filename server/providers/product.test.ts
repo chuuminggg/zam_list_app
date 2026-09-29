@@ -51,3 +51,15 @@ describe('PRODUCT_ADAPTERS - 이름 재검색 방식', () => {
     expect(search).not.toHaveBeenCalled();
   });
 });
+
+describe('PRODUCT_ADAPTERS.coupang', () => {
+  it('옵션을 뗀 상품명으로 다시 검색한다', async () => {
+    const search = vi.spyOn(SEARCH_ADAPTERS, 'coupang').mockResolvedValue([]);
+
+    await expect(PRODUCT_ADAPTERS.coupang('1-2', '클래파 무선청소기, 그레이, BVC-H10')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+
+    expect(search).toHaveBeenCalledWith('클래파 무선청소기', 20);
+  });
+});

@@ -44,8 +44,11 @@ export const PROVIDER_LABEL: Record<ProviderId, string> = {
 };
 
 /** 상품 검색을 지원하는 공급자 (탭 순서 = 이 배열 순서) */
-export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly', 'bunjang'] as const;
+export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly', 'bunjang', 'coupang'] as const;
 export type SearchProviderId = (typeof SEARCH_PROVIDER_IDS)[number];
+
+/** 쿠팡 파트너스 링크를 보여줄 때 반드시 함께 표시해야 하는 제휴 고지 */
+export const COUPANG_AFFILIATE_NOTICE = '쿠팡 파트너스 활동을 통해 일정액의 수수료를 제공받을 수 있습니다.';
 
 /** 매장 재고 확인을 지원하는 공급자 */
 export const STOCK_PROVIDER_IDS = ['daiso', 'oliveyoung'] as const;

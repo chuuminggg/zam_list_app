@@ -9,6 +9,7 @@
 import { SEARCH_PROVIDER_IDS, type ProductResult, type SearchProviderId } from '../../shared/api.js';
 import { ApiException } from '../errors.js';
 import { fetchBunjangProduct } from './bunjang.js';
+import { coupangRefetchQuery } from './coupang.js';
 import { SEARCH_ADAPTERS } from './search.js';
 
 /** 이름으로 다시 검색할 때 훑어볼 결과 수 */
@@ -25,10 +26,10 @@ function notFound(): never {
   );
 }
 
-/** 상품명으로 다시 검색해 같은 상품번호를 찾는다. */
-function byNameSearch(provider: SearchProviderId): FetchProductFn {
+/** 상품명으로 다시 검색해 같은 상품번호를 찾는다. toQuery로 검색어를 공급자에 맞게 다듬을 수 있다. */
+function byNameSearch(provider: SearchProviderId, toQuery: (name: string) => string = (name) => name): FetchProductFn {
   return async (productId, productName) => {
-    const query = productName?.trim().slice(0, QUERY_MAX) ?? '';
+    const query = toQuery(productName?.trim() ?? '').slice(0, QUERY_MAX);
     if (query.length < 2) {
       throw new ApiException('BAD_REQUEST', '이 쇼핑몰은 상품명으로만 다시 조회할 수 있습니다.');
     }
@@ -42,6 +43,7 @@ export const PRODUCT_ADAPTERS: Record<SearchProviderId, FetchProductFn> = {
   oliveyoung: byNameSearch('oliveyoung'),
   kurly: byNameSearch('kurly'),
   bunjang: fetchBunjangProduct,
+  coupang: byNameSearch('coupang', coupangRefetchQuery),
 };
 
 export const PRODUCT_PROVIDERS = SEARCH_PROVIDER_IDS;

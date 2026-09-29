@@ -25,8 +25,33 @@ describe('WishlistPage', () => {
       '올리브영',
       '마켓컬리',
       '번개장터',
+      '쿠팡',
     ]);
     expect(within(dialog).getByLabelText('상품 검색어')).toBeTruthy();
+  });
+
+  it('쿠팡 탭과 쿠팡에서 담은 카드에는 제휴 고지 문구가 보인다', async () => {
+    useWishStore.setState({
+      items: [
+        {
+          id: 'c1',
+          name: '무선청소기',
+          status: 'want',
+          category: '쿠팡',
+          createdAt: new Date().toISOString(),
+          url: 'https://link.coupang.com/re/AFFSDP?pageKey=1',
+          source: { provider: 'coupang', externalId: '1-2' },
+        },
+      ],
+    });
+    render(<WishlistPage />);
+    expect(screen.getByText(/쿠팡 파트너스 활동을 통해/)).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
+    const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
+    expect(within(dialog).queryByText(/쿠팡 파트너스 활동을 통해/)).toBeNull();
+    await userEvent.click(within(dialog).getByRole('button', { name: '쿠팡' }));
+    expect(within(dialog).getByText(/쿠팡 파트너스 활동을 통해/)).toBeTruthy();
   });
 
   it('서버에서 비활성화된 쇼핑몰은 사유와 함께 선택할 수 없게 표시한다', async () => {
