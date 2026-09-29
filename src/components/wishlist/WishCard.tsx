@@ -1,7 +1,7 @@
 import Badge from '../common/Badge';
 import IconButton from '../common/IconButton';
 import Select from '../common/Select';
-import { PROVIDER_LABEL } from '../../../shared/api';
+import { COUPANG_AFFILIATE_NOTICE, PROVIDER_LABEL } from '../../../shared/api';
 import { supportsStockCheck } from '../../constants/shopping';
 import { STATUSES, STATUS_LABEL, STATUS_TONE } from '../../constants/wish';
 import { useWishStore } from '../../stores/wishStore';
@@ -128,6 +128,9 @@ export default function WishCard({
           >
             {sourceLabel ? `${sourceLabel}에서 보기` : '링크 열기'}
           </a>
+        )}
+        {item.url && item.source?.provider === 'coupang' && (
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{COUPANG_AFFILIATE_NOTICE}</p>
         )}
       </div>
       <Select

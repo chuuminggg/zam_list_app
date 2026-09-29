@@ -1,5 +1,6 @@
 import { SEARCH_PROVIDER_IDS, type ProductResult, type SearchProviderId } from '../../shared/api.js';
 import { searchBunjangProducts } from './bunjang.js';
+import { searchCoupangProducts } from './coupang.js';
 import { searchDaisoProducts } from './daiso.js';
 import { searchKurlyProducts } from './kurly.js';
 import { searchOliveyoungProducts } from './oliveyoung.js';
@@ -12,6 +13,7 @@ export const SEARCH_ADAPTERS: Record<SearchProviderId, SearchFn> = {
   oliveyoung: searchOliveyoungProducts,
   kurly: searchKurlyProducts,
   bunjang: searchBunjangProducts,
+  coupang: (query, limit) => searchCoupangProducts(query, limit),
 };
 
 export const SEARCH_PROVIDERS = SEARCH_PROVIDER_IDS;
