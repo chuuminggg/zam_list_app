@@ -1,4 +1,4 @@
-import { SEARCH_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
+import { SOURCE_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
 import {
   MAX_LEDGER_AMOUNT,
   MAX_PRICE_HISTORY,
@@ -123,7 +123,7 @@ export function parseWishItem(value: unknown): WishItem {
   let source: WishItem['source'];
   if (obj.source != null) {
     const s = asObject(obj.source, 'source');
-    source = { provider: oneOf(s, 'provider', SEARCH_PROVIDER_IDS), externalId: str(s, 'externalId', 100, 1) };
+    source = { provider: oneOf(s, 'provider', SOURCE_PROVIDER_IDS), externalId: str(s, 'externalId', 100, 1) };
   }
 
   let stockLink: WishItem['stockLink'];

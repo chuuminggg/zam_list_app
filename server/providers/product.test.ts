@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProductResult } from '../../shared/api.js';
 import { ApiException } from '../errors.js';
+import { DEAL_ADAPTERS } from './deals.js';
 import { PRODUCT_ADAPTERS } from './product.js';
 import { SEARCH_ADAPTERS } from './search.js';
 
@@ -61,5 +62,28 @@ describe('PRODUCT_ADAPTERS.coupang', () => {
     });
 
     expect(search).toHaveBeenCalledWith('클래파 무선청소기', 20);
+  });
+});
+
+describe('PRODUCT_ADAPTERS.ohou - 오늘의딜 목록에서 찾기', () => {
+  const deal = (externalId: string, price: number): ProductResult => ({
+    provider: 'ohou',
+    externalId,
+    name: '침대 모음',
+    price,
+    url: `https://ohou.se/productions/${externalId}/selling`,
+    badges: [],
+  });
+
+  it('지금 목록에 있으면 그 결과를 돌려준다', async () => {
+    vi.spyOn(DEAL_ADAPTERS, 'ohou').mockResolvedValue([deal('1', 1000), deal('2', 2000)]);
+
+    await expect(PRODUCT_ADAPTERS.ohou('2')).resolves.toMatchObject({ price: 2000 });
+  });
+
+  it('목록에서 내려갔으면 NOT_FOUND', async () => {
+    vi.spyOn(DEAL_ADAPTERS, 'ohou').mockResolvedValue([deal('1', 1000)]);
+
+    await expect(PRODUCT_ADAPTERS.ohou('2')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });
