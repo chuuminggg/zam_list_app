@@ -1,7 +1,7 @@
 /**
  * 서버에 저장하는 사용자 데이터 타입. 프론트(src)와 서버 함수(api, server)가 함께 쓴다.
  */
-import type { SearchProviderId, StockProviderId } from './api.js';
+import type { SourceProviderId, StockProviderId } from './api.js';
 
 export interface Todo {
   id: string;
@@ -29,9 +29,9 @@ export interface Category {
   createdAt: string;
 }
 
-/** 상품 검색으로 담은 항목의 원본 상품 */
+/** 상품 검색·특가 목록에서 담은 항목의 원본 상품 */
 export interface ProductSource {
-  provider: SearchProviderId;
+  provider: SourceProviderId;
   externalId: string;
 }
 

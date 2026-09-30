@@ -47,6 +47,14 @@ export const PROVIDER_LABEL: Record<ProviderId, string> = {
 export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly', 'bunjang', 'coupang'] as const;
 export type SearchProviderId = (typeof SEARCH_PROVIDER_IDS)[number];
 
+/** 키워드 검색 없이 특가 목록을 내려주는 공급자 */
+export const DEAL_PROVIDER_IDS = ['ohou'] as const;
+export type DealProviderId = (typeof DEAL_PROVIDER_IDS)[number];
+
+/** 위시에 담을 수 있는 상품의 출처 (검색 + 특가 목록) */
+export const SOURCE_PROVIDER_IDS = [...SEARCH_PROVIDER_IDS, ...DEAL_PROVIDER_IDS] as const;
+export type SourceProviderId = (typeof SOURCE_PROVIDER_IDS)[number];
+
 /** 쿠팡 파트너스 링크를 보여줄 때 반드시 함께 표시해야 하는 제휴 고지 */
 export const COUPANG_AFFILIATE_NOTICE = '쿠팡 파트너스 활동을 통해 일정액의 수수료를 제공받을 수 있습니다.';
 
