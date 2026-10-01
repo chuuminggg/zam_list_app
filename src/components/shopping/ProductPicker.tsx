@@ -3,9 +3,9 @@ import type { FormEvent } from 'react';
 import type { ProductResult, SearchProviderId } from '../../../shared/api';
 import { searchProducts } from '../../api/client';
 import { useApiRequest } from '../../hooks/useApiRequest';
-import Badge from '../common/Badge';
 import Button from '../common/Button';
 import Input from '../common/Input';
+import ProductResultList from './ProductResultList';
 
 interface ProductPickerProps {
   provider: SearchProviderId;
@@ -66,53 +66,13 @@ export default function ProductPicker({
         <p className="text-sm text-gray-500 dark:text-gray-400">검색 결과가 없어요.</p>
       )}
       {state.status === 'success' && state.data.length > 0 && (
-        <ul className="space-y-1.5 max-h-80 overflow-y-auto">
-          {state.data.map((product) => {
-            const selected = selectedIds?.has(product.externalId) ?? false;
-            return (
-              <li key={product.externalId}>
-                <button
-                  type="button"
-                  disabled={selected}
-                  onClick={() => onSelect(product)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg text-left border border-gray-200 dark:border-gray-700 enabled:hover:border-purple-400 dark:enabled:hover:border-purple-500 disabled:opacity-60 transition-colors"
-                >
-                  {product.imageUrl && (
-                    <img
-                      src={product.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      className="w-12 h-12 object-cover rounded flex-shrink-0"
-                    />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-900 dark:text-white line-clamp-2">{product.name}</p>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                      {product.price != null && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
-                          ₩{product.price.toLocaleString()}
-                        </span>
-                      )}
-                      {product.badges.map((badge) => (
-                        <Badge key={badge}>{badge}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                  {actionLabel && (
-                    <span
-                      className={`text-xs font-medium flex-shrink-0 ${
-                        selected ? 'text-gray-400 dark:text-gray-500' : 'text-purple-600 dark:text-purple-400'
-                      }`}
-                    >
-                      {selected ? selectedLabel : actionLabel}
-                    </span>
-                  )}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+        <ProductResultList
+          products={state.data}
+          onSelect={onSelect}
+          selectedIds={selectedIds}
+          actionLabel={actionLabel}
+          selectedLabel={selectedLabel}
+        />
       )}
     </div>
   );

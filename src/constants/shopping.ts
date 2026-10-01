@@ -1,8 +1,11 @@
 import {
+  DEAL_PROVIDER_IDS,
   PROVIDER_LABEL,
   SEARCH_PROVIDER_IDS,
+  SOURCE_PROVIDER_IDS,
   STOCK_PROVIDER_IDS,
   type ProviderId,
+  type DealProviderId,
   type ProviderInfo,
   type StockProviderId,
   type StockStatus,
@@ -14,6 +17,16 @@ const toOptions = <T extends ProviderId>(ids: readonly T[]) =>
 
 /** 상품 검색 탭 */
 export const SEARCH_PROVIDERS = toOptions(SEARCH_PROVIDER_IDS);
+
+/** 위시에 담기 모달 탭 — 검색 공급자 뒤에 특가 목록 공급자 */
+export const SOURCE_PROVIDERS = toOptions(SOURCE_PROVIDER_IDS);
+
+const DEAL_PROVIDER_SET = new Set<ProviderId>(DEAL_PROVIDER_IDS);
+
+/** 검색어 없이 특가 목록을 보여주는 공급자인지 */
+export function isDealProvider(provider: ProviderId): provider is DealProviderId {
+  return DEAL_PROVIDER_SET.has(provider);
+}
 
 /** 매장 재고 확인 탭 */
 export const STOCK_PROVIDERS = toOptions(STOCK_PROVIDER_IDS);
