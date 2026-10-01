@@ -26,8 +26,48 @@ describe('WishlistPage', () => {
       '마켓컬리',
       '번개장터',
       '쿠팡',
+      '오늘의집',
     ]);
     expect(within(dialog).getByLabelText('상품 검색어')).toBeTruthy();
+  });
+
+  it('오늘의집 탭은 검색 없이 오늘의딜 목록을 불러와 담을 수 있다', async () => {
+    const deal = (externalId: string, name: string) => ({
+      provider: 'ohou',
+      externalId,
+      name,
+      price: 41800,
+      url: `https://ohou.se/productions/${externalId}/selling`,
+      badges: ['47% 할인'],
+    });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input), 'http://localhost');
+      if (url.pathname === '/api/deals') {
+        return Response.json({ ok: true, data: [deal('1', '베베앙 물티슈'), deal('2', '원목 침대')] });
+      }
+      return Response.json({ ok: true, data: { providers: [] } });
+    });
+
+    render(<WishlistPage />);
+    await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
+    const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
+    await userEvent.click(within(dialog).getByRole('button', { name: '오늘의집' }));
+
+    expect(await within(dialog).findByText('원목 침대')).toBeTruthy();
+    expect(within(dialog).queryByLabelText('상품 검색어')).toBeNull();
+    const requested = fetchMock.mock.calls.map(([input]) => new URL(String(input), 'http://localhost'));
+    expect(requested.find((u) => u.pathname === '/api/deals')?.searchParams.get('provider')).toBe('ohou');
+
+    // 받은 목록 안에서만 거른다
+    await userEvent.type(within(dialog).getByLabelText('특가 목록에서 찾기'), '침대');
+    expect(within(dialog).queryByText('베베앙 물티슈')).toBeNull();
+
+    await userEvent.click(within(dialog).getByRole('button', { name: /원목 침대/ }));
+    expect(useWishStore.getState().items[0]).toMatchObject({
+      name: '원목 침대',
+      category: '오늘의집',
+      source: { provider: 'ohou', externalId: '2' },
+    });
   });
 
   it('쿠팡 탭과 쿠팡에서 담은 카드에는 제휴 고지 문구가 보인다', async () => {

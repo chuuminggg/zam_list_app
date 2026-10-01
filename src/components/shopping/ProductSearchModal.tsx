@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react';
-import { COUPANG_AFFILIATE_NOTICE, PROVIDER_LABEL, type ProductResult, type SearchProviderId } from '../../../shared/api';
-import { SEARCH_PROVIDERS, withAvailability } from '../../constants/shopping';
+import {
+  COUPANG_AFFILIATE_NOTICE,
+  PROVIDER_LABEL,
+  type ProductResult,
+  type SourceProviderId,
+} from '../../../shared/api';
+import { isDealProvider, SOURCE_PROVIDERS, withAvailability } from '../../constants/shopping';
 import { useProviders } from '../../hooks/useProviders';
 import { useWishStore } from '../../stores/wishStore';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
+import DealPicker from './DealPicker';
 import ProductPicker from './ProductPicker';
 import ProviderToggle from './ProviderToggle';
 
@@ -15,10 +21,10 @@ interface ProductSearchModalProps {
 export default function ProductSearchModal({ onClose }: ProductSearchModalProps) {
   const items = useWishStore((s) => s.items);
   const addItem = useWishStore((s) => s.addItem);
-  const [provider, setProvider] = useState<SearchProviderId>('daiso');
+  const [provider, setProvider] = useState<SourceProviderId>('daiso');
   const [addedCount, setAddedCount] = useState(0);
   const providers = useProviders();
-  const options = withAvailability(SEARCH_PROVIDERS, providers);
+  const options = withAvailability(SOURCE_PROVIDERS, providers);
 
   const addedIds = useMemo(
     () =>
@@ -46,16 +52,27 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
     <Modal open title="상품 검색해서 담기" onClose={onClose}>
       <ProviderToggle value={provider} options={options} onChange={setProvider} />
       {/* 쇼핑몰이 바뀌면 검색어·결과를 새로 시작한다. */}
-      <ProductPicker
-        key={provider}
-        provider={provider}
-        initialQuery=""
-        onSelect={handleAdd}
-        selectedIds={addedIds}
-        actionLabel="+ 담기"
-        selectedLabel="담김 ✓"
-        autoFocus
-      />
+      {isDealProvider(provider) ? (
+        <DealPicker
+          key={provider}
+          provider={provider}
+          onSelect={handleAdd}
+          selectedIds={addedIds}
+          actionLabel="+ 담기"
+          selectedLabel="담김 ✓"
+        />
+      ) : (
+        <ProductPicker
+          key={provider}
+          provider={provider}
+          initialQuery=""
+          onSelect={handleAdd}
+          selectedIds={addedIds}
+          actionLabel="+ 담기"
+          selectedLabel="담김 ✓"
+          autoFocus
+        />
+      )}
       {provider === 'coupang' && (
         <p className="text-xs text-gray-500 dark:text-gray-400">{COUPANG_AFFILIATE_NOTICE}</p>
       )}

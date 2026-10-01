@@ -1,6 +1,7 @@
 import type {
   ApiErrorCode,
   ApiResponse,
+  DealProviderId,
   ProductResult,
   ProviderInfo,
   SearchProviderId,
@@ -67,6 +68,10 @@ export const fetchProviders = (signal?: AbortSignal) =>
 
 export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal) =>
   apiGet<ProductResult[]>('search', { provider, q, limit: 10 }, signal);
+
+/** 오늘의집 오늘의딜 같은 특가 목록 (검색어 없음) */
+export const fetchDeals = (provider: DealProviderId, signal?: AbortSignal) =>
+  apiGet<ProductResult[]>('deals', { provider }, signal);
 
 /** 담아둔 상품 단건 재조회. name은 단건 조회 API가 없는 공급자가 상품을 다시 찾을 때 쓴다. */
 export const refetchProduct = (provider: SourceProviderId, id: string, name: string, signal?: AbortSignal) =>
