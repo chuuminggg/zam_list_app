@@ -1,15 +1,17 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { WishItem, WishFilter, WishSort } from '../types';
+import type { WishItem, WishFilter, WishShopFilter, WishSort } from '../types';
 
 interface WishStore {
   items: WishItem[];
   filter: WishFilter;
+  shopFilter: WishShopFilter;
   sort: WishSort;
   addItem: (item: Omit<WishItem, 'id' | 'createdAt'>) => void;
   updateItem: (id: string, updates: Partial<WishItem>) => void;
   deleteItem: (id: string) => void;
   setFilter: (filter: WishFilter) => void;
+  setShopFilter: (shopFilter: WishShopFilter) => void;
   setSort: (sort: WishSort) => void;
 }
 
@@ -18,6 +20,7 @@ export const useWishStore = create<WishStore>()(
     (set) => ({
       items: [],
       filter: 'all',
+      shopFilter: 'all',
       sort: 'newest',
       addItem: (item) =>
         set((state) => ({
@@ -33,6 +36,7 @@ export const useWishStore = create<WishStore>()(
       deleteItem: (id) =>
         set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
       setFilter: (filter) => set({ filter }),
+      setShopFilter: (shopFilter) => set({ shopFilter }),
       setSort: (sort) => set({ sort }),
     }),
     { name: 'zam-wishlist' }

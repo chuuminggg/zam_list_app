@@ -8,6 +8,7 @@ import WishList from '../components/wishlist/WishList';
 import { useWishRefresh } from '../hooks/useWishRefresh';
 import { useWishStore } from '../stores/wishStore';
 import type { WishItem } from '../types';
+import { matchesShop } from '../constants/wish';
 import { canRefresh, isFresh, priceChange } from '../utils/wishRefresh';
 
 /** 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 항목. */
@@ -16,6 +17,7 @@ type FormTarget = WishItem | 'new' | null;
 export default function WishlistPage() {
   const items = useWishStore((s) => s.items);
   const filter = useWishStore((s) => s.filter);
+  const shopFilter = useWishStore((s) => s.shopFilter);
   const sort = useWishStore((s) => s.sort);
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -29,7 +31,7 @@ export default function WishlistPage() {
   const visibleItems = useMemo(
     () =>
       items
-        .filter((i) => filter === 'all' || i.status === filter)
+        .filter((i) => (filter === 'all' || i.status === filter) && matchesShop(i, shopFilter))
         .sort((a, b) => {
           if (sort === 'newest') return b.createdAt.localeCompare(a.createdAt);
           if (sort === 'oldest') return a.createdAt.localeCompare(b.createdAt);
@@ -39,7 +41,7 @@ export default function WishlistPage() {
           const pb = b.price ?? 0;
           return sort === 'price-asc' ? pa - pb : pb - pa;
         }),
-    [items, filter, sort]
+    [items, filter, shopFilter, sort]
   );
 
   const editingItem = formTarget && formTarget !== 'new' ? formTarget : undefined;
@@ -72,6 +74,7 @@ export default function WishlistPage() {
       <WishList
         items={visibleItems}
         filter={filter}
+        shopFilter={shopFilter}
         onEdit={setFormTarget}
         onCheckStock={(item) => setStockTargetId(item.id)}
         onRefresh={refreshItem}

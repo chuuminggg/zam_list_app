@@ -1,6 +1,7 @@
 import EmptyState from '../common/EmptyState';
 import WishCard from './WishCard';
-import type { WishItem, WishFilter } from '../../types';
+import { PROVIDER_LABEL } from '../../../shared/api';
+import type { WishItem, WishFilter, WishShopFilter } from '../../types';
 
 const EMPTY_COPY: Record<WishFilter, { title: string; description: string }> = {
   all: { title: '위시리스트가 비어 있어요', description: '상품 검색으로 다이소·올리브영 상품을 담거나, + 추가로 직접 적어보세요.' },
@@ -12,6 +13,7 @@ const EMPTY_COPY: Record<WishFilter, { title: string; description: string }> = {
 interface WishListProps {
   items: WishItem[];
   filter: WishFilter;
+  shopFilter: WishShopFilter;
   onEdit: (item: WishItem) => void;
   onCheckStock: (item: WishItem) => void;
   onRefresh: (item: WishItem) => void;
@@ -24,6 +26,7 @@ interface WishListProps {
 export default function WishList({
   items,
   filter,
+  shopFilter,
   onEdit,
   onCheckStock,
   onRefresh,
@@ -31,6 +34,15 @@ export default function WishList({
   refreshErrors,
 }: WishListProps) {
   if (items.length === 0) {
+    if (shopFilter !== 'all') {
+      return (
+        <EmptyState
+          icon="🛍️"
+          title={`${PROVIDER_LABEL[shopFilter]} 항목이 없어요`}
+          description={`상품 검색에서 ${PROVIDER_LABEL[shopFilter]} 상품을 담아보세요.`}
+        />
+      );
+    }
     return <EmptyState icon="🎁" {...EMPTY_COPY[filter]} />;
   }
 
