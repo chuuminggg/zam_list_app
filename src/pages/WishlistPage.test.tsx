@@ -9,7 +9,7 @@ afterEach(() => {
   // globals: false 라 자동 cleanup이 걸리지 않는다.
   cleanup();
   vi.restoreAllMocks();
-  useWishStore.setState({ items: [], filter: 'all', sort: 'newest' });
+  useWishStore.setState({ items: [], filter: 'all', shopFilter: 'all', sort: 'newest' });
   localStorage.clear();
 });
 
@@ -163,6 +163,53 @@ describe('WishlistPage', () => {
     }
   });
 
+  it('쇼핑몰 필터로 해당 쇼핑몰 항목만 보고, 상태 필터와 함께 걸린다', async () => {
+    const base = { category: '', createdAt: new Date().toISOString() };
+    useWishStore.setState({
+      items: [
+        { ...base, id: 'a', name: '수납함', status: 'want', source: { provider: 'daiso', externalId: '1' } },
+        { ...base, id: 'b', name: '바구니', status: 'bought', source: { provider: 'daiso', externalId: '2' } },
+        { ...base, id: 'c', name: '선크림', status: 'want', source: { provider: 'oliveyoung', externalId: '3' } },
+        {
+          ...base,
+          id: 'd',
+          name: '직접 적은 립밤',
+          status: 'want',
+          stockLink: { provider: 'oliveyoung', productId: '4', productName: '립밤' },
+        },
+        { ...base, id: 'e', name: '직접 적은 항목', status: 'want' },
+      ],
+    });
+    render(<WishlistPage />);
+    const shops = screen.getByRole('group', { name: '쇼핑몰 필터' });
+    const visible = () => screen.queryAllByRole('listitem').length;
+
+    expect(within(shops).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      '모든 쇼핑몰',
+      '다이소',
+      '올리브영',
+      '마켓컬리',
+      '번개장터',
+      '쿠팡',
+      '오늘의집',
+    ]);
+    expect(visible()).toBe(5);
+
+    await userEvent.click(within(shops).getByRole('button', { name: '올리브영' }));
+    expect(visible()).toBe(2);
+    expect(screen.getByRole('button', { name: '선크림' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '직접 적은 립밤' })).toBeTruthy();
+
+    await userEvent.click(within(shops).getByRole('button', { name: '다이소' }));
+    const statuses = screen.getByRole('group', { name: '상태 필터' });
+    await userEvent.click(within(statuses).getByRole('button', { name: '구매함' }));
+    expect(visible()).toBe(1);
+    expect(screen.getByRole('button', { name: '바구니' })).toBeTruthy();
+
+    await userEvent.click(within(shops).getByRole('button', { name: '쿠팡' }));
+    expect(screen.getByText('쿠팡 항목이 없어요')).toBeTruthy();
+  });
+
   it('검색으로 담은 항목은 카드에 쇼핑몰 배지를 보여준다', () => {
     useWishStore.setState({
       items: [
@@ -178,7 +225,8 @@ describe('WishlistPage', () => {
       ],
     });
     render(<WishlistPage />);
-    expect(screen.getByText('마켓컬리')).toBeTruthy();
+    const card = screen.getByRole('listitem');
+    expect(within(card).getByText('마켓컬리')).toBeTruthy();
     expect(screen.getByRole('link', { name: '마켓컬리에서 보기' })).toBeTruthy();
   });
 

@@ -1,4 +1,5 @@
-import type { WishItem, WishFilter, WishSort } from '../types';
+import { PROVIDER_LABEL, SOURCE_PROVIDER_IDS } from '../../shared/api';
+import type { WishItem, WishFilter, WishShopFilter, WishSort } from '../types';
 
 export const STATUSES = ['want', 'bought', 'dropped'] as const;
 
@@ -20,6 +21,16 @@ export const WISH_FILTERS: { value: WishFilter; label: string }[] = [
   { value: 'bought', label: '구매함' },
   { value: 'dropped', label: '포기' },
 ];
+
+/** 쇼핑몰 필터 (순서 = 상품 담기 모달 탭 순서) */
+export const WISH_SHOP_FILTERS: { value: WishShopFilter; label: string }[] = [
+  { value: 'all', label: '모든 쇼핑몰' },
+  ...SOURCE_PROVIDER_IDS.map((id) => ({ value: id, label: PROVIDER_LABEL[id] })),
+];
+
+/** 담아 온 쇼핑몰, 또는 재고 확인용으로 연결한 쇼핑몰이 일치하면 해당 쇼핑몰 항목으로 본다. */
+export const matchesShop = (item: WishItem, shop: WishShopFilter) =>
+  shop === 'all' || item.source?.provider === shop || item.stockLink?.provider === shop;
 
 export const WISH_SORTS: { value: WishSort; label: string }[] = [
   { value: 'newest', label: '최신순' },
