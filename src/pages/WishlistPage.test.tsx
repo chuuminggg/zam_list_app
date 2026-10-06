@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useSearchPrefsStore } from '../stores/searchPrefsStore';
 import { useWishStore } from '../stores/wishStore';
 import WishlistPage from './WishlistPage';
 
@@ -21,6 +22,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   useWishStore.setState({ items: [], filter: 'all', shopFilter: 'all', sort: 'newest' });
+  useSearchPrefsStore.setState({ region: '' });
   localStorage.clear();
 });
 
@@ -36,10 +38,47 @@ describe('WishlistPage', () => {
       '올리브영',
       '마켓컬리',
       '번개장터',
+      '당근',
       '쿠팡',
       '오늘의집',
     ]);
     expect(within(dialog).getByLabelText('상품 검색어')).toBeTruthy();
+  });
+
+  it('당근 탭은 동네 이름을 함께 보내고 다음에 쓸 수 있게 기억한다', async () => {
+    const fetchMock = mockApi({
+      '/api/search': () =>
+        Response.json({
+          ok: true,
+          data: [
+            {
+              provider: 'daangn',
+              externalId: 'apiz67ngz96h',
+              name: '아이패드 9세대',
+              price: 250000,
+              url: 'https://www.daangn.com/kr/buy-sell/apiz67ngz96h/',
+              badges: ['판매중', '망원제1동', '1.0km'],
+            },
+          ],
+        }),
+    });
+
+    render(<WishlistPage />);
+    await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
+    const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
+    await userEvent.click(within(dialog).getByRole('button', { name: '당근' }));
+
+    const search = within(dialog).getByRole('button', { name: '검색' });
+    await userEvent.type(within(dialog).getByLabelText('상품 검색어'), '아이패드');
+    // 동네를 안 적으면 검색할 수 없다
+    expect(search.hasAttribute('disabled')).toBe(true);
+    await userEvent.type(within(dialog).getByLabelText('동네 이름'), '합정동');
+    await userEvent.click(search);
+
+    expect(await within(dialog).findByText('아이패드 9세대')).toBeTruthy();
+    const requested = apiRequests(fetchMock).find((u) => u.pathname === '/api/search')!;
+    expect(Object.fromEntries(requested.searchParams)).toMatchObject({ provider: 'daangn', q: '아이패드', region: '합정동' });
+    expect(useSearchPrefsStore.getState().region).toBe('합정동');
   });
 
   it('오늘의집 탭은 검색 없이 오늘의딜 목록을 불러와 담을 수 있다', async () => {
@@ -228,6 +267,7 @@ describe('WishlistPage', () => {
       '올리브영',
       '마켓컬리',
       '번개장터',
+      '당근',
       '쿠팡',
       '오늘의집',
     ]);

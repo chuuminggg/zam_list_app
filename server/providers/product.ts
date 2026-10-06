@@ -2,7 +2,7 @@
  * 담아둔 항목을 다시 조회해 가격·품절 상태를 확인하는 어댑터.
  *
  * 공급자마다 방식이 다르다.
- * - 번개장터: 상품 상세 API가 열려 있어 판매완료 상품도 그대로 조회된다.
+ * - 번개장터·당근: 상품 상세가 열려 있어 판매완료(거래완료) 상품도 그대로 조회된다.
  * - 오늘의집: 상품 페이지가 서버 렌더링되지 않아, 지금의 오늘의딜 목록에서 같은 상품을 찾는다.
  * - 나머지: 단건 조회 엔드포인트가 없거나 막혀 있어(마켓컬리 상세는 404/500),
  *   담을 때 저장해 둔 상품명으로 다시 검색해 같은 상품번호를 찾는다.
@@ -16,6 +16,7 @@ import {
 import { ApiException } from '../errors.js';
 import { fetchBunjangProduct } from './bunjang.js';
 import { coupangRefetchQuery } from './coupang.js';
+import { fetchDaangnProduct } from './daangn.js';
 import { getDeals } from './deals.js';
 import { SEARCH_ADAPTERS } from './search.js';
 
@@ -61,6 +62,7 @@ export const PRODUCT_ADAPTERS: Record<SourceProviderId, FetchProductFn> = {
   oliveyoung: byNameSearch('oliveyoung'),
   kurly: byNameSearch('kurly'),
   bunjang: fetchBunjangProduct,
+  daangn: fetchDaangnProduct,
   coupang: byNameSearch('coupang', coupangRefetchQuery),
   ohou: fromOhouDeals,
 };

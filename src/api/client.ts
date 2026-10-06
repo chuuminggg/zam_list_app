@@ -66,8 +66,9 @@ export const apiGet = <T>(path: string, params: Params = {}, signal?: AbortSigna
 export const fetchProviders = (signal?: AbortSignal) =>
   apiGet<{ providers: ProviderInfo[] }>('providers', {}, signal).then((d) => d.providers);
 
-export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal) =>
-  apiGet<ProductResult[]>('search', { provider, q, limit: 10 }, signal);
+/** region은 당근처럼 동네 이름이 필요한 공급자만 보낸다. */
+export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal, region?: string) =>
+  apiGet<ProductResult[]>('search', { provider, q, limit: 10, region }, signal);
 
 /** 오늘의집 오늘의딜 같은 특가 목록 (검색어 없음) */
 export const fetchDeals = (provider: DealProviderId, signal?: AbortSignal) =>

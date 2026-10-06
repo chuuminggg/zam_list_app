@@ -44,8 +44,11 @@ export const PROVIDER_LABEL: Record<ProviderId, string> = {
 };
 
 /** 상품 검색을 지원하는 공급자 (탭 순서 = 이 배열 순서) */
-export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly', 'bunjang', 'coupang'] as const;
+export const SEARCH_PROVIDER_IDS = ['daiso', 'oliveyoung', 'kurly', 'bunjang', 'daangn', 'coupang'] as const;
 export type SearchProviderId = (typeof SEARCH_PROVIDER_IDS)[number];
+
+/** 검색할 때 동네 이름이 필요한 공급자 */
+export const REGION_SEARCH_PROVIDER_IDS = ['daangn'] as const;
 
 /** 키워드 검색 없이 특가 목록을 내려주는 공급자 */
 export const DEAL_PROVIDER_IDS = ['ohou'] as const;

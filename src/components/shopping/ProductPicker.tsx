@@ -2,7 +2,9 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ProductResult, SearchProviderId } from '../../../shared/api';
 import { searchProducts } from '../../api/client';
+import { needsRegion } from '../../constants/shopping';
 import { useApiRequest } from '../../hooks/useApiRequest';
+import { useSearchPrefsStore } from '../../stores/searchPrefsStore';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import ProductResultList from './ProductResultList';
@@ -29,18 +31,39 @@ export default function ProductPicker({
   autoFocus,
 }: ProductPickerProps) {
   const [query, setQuery] = useState(initialQuery);
+  const savedRegion = useSearchPrefsStore((s) => s.region);
+  const setSavedRegion = useSearchPrefsStore((s) => s.setRegion);
+  const [region, setRegion] = useState(savedRegion);
   const { state, run } = useApiRequest<ProductResult[]>();
+  const withRegion = needsRegion(provider);
+  const canSearch = query.trim().length >= 2 && (!withRegion || region.trim().length >= 2);
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
+    if (!canSearch) return;
     const q = query.trim();
-    if (q.length < 2) return;
-    run((signal) => searchProducts(provider, q, signal));
+    if (withRegion) {
+      const r = region.trim();
+      setSavedRegion(r);
+      run((signal) => searchProducts(provider, q, signal, r));
+    } else {
+      run((signal) => searchProducts(provider, q, signal));
+    }
   };
 
   return (
     <div className="space-y-2">
       <form onSubmit={handleSubmit} className="flex gap-2">
+        {withRegion && (
+          <Input
+            accent="purple"
+            aria-label="동네 이름"
+            placeholder="동네 (예: 합정동)"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+            className="text-sm w-32 flex-shrink-0"
+          />
+        )}
         <Input
           accent="purple"
           aria-label="상품 검색어"
@@ -53,17 +76,25 @@ export default function ProductPicker({
         <Button
           type="submit"
           variant="accent"
-          disabled={query.trim().length < 2 || state.status === 'loading'}
+          disabled={!canSearch || state.status === 'loading'}
           className="flex-shrink-0"
         >
           검색
         </Button>
       </form>
 
+      {withRegion && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          가까운 동네 매물과 다른 지역 매물이 섞여 나와요. 거리는 입력한 동네 중심 기준이에요.
+        </p>
+      )}
       {state.status === 'loading' && <p className="text-sm text-gray-500 dark:text-gray-400">검색 중…</p>}
       {state.status === 'error' && <p className="text-sm text-red-500">{state.message}</p>}
       {state.status === 'success' && state.data.length === 0 && (
-        <p className="text-sm text-gray-500 dark:text-gray-400">검색 결과가 없어요.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          검색 결과가 없어요.
+          {withRegion && ' 당근은 짧은 시간에 여러 번 검색하면 빈 결과가 올 수 있어요. 잠시 뒤 다시 해보세요.'}
+        </p>
       )}
       {state.status === 'success' && state.data.length > 0 && (
         <ProductResultList
