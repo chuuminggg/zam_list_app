@@ -27,6 +27,10 @@ const SCHEMA: Statement[] = [
     )`,
   },
   {
+    // 임시 비밀번호로 초기화된 계정은 새 비밀번호를 정해야 로그인된다.
+    text: `ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password boolean NOT NULL DEFAULT false`,
+  },
+  {
     text: `CREATE TABLE IF NOT EXISTS sessions (
       token_hash text PRIMARY KEY,
       user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,

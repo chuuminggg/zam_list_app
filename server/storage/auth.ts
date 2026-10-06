@@ -71,24 +71,55 @@ interface UserRow {
   id: string;
   username: string;
   password_hash: string;
+  must_change_password: boolean;
 }
 
-/** 로그인 결과. status가 'new'면 아직 없는 아이디라 계정을 만들지 않고 돌아온 것. */
+/** 초기화된 비밀번호: 한국 시간 기준 오늘 날짜 (YYYYMMDD) */
+export function temporaryPassword(now = new Date()): string {
+  return new Date(now.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+}
+
+/**
+ * 비밀번호를 오늘 날짜로 초기화한다. 다음 로그인 때 새 비밀번호를 정해야 하고,
+ * 다른 기기의 세션은 모두 끊는다.
+ */
+export async function resetPassword(db: Db, username: string): Promise<void> {
+  const [user] = await db.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [username]);
+  if (!user) throw new ApiException('NOT_FOUND', '없는 아이디예요.');
+  await db.transaction([
+    {
+      text: 'UPDATE users SET password_hash = $2, must_change_password = true WHERE id = $1',
+      params: [user.id, await hashPassword(temporaryPassword())],
+    },
+    { text: 'DELETE FROM sessions WHERE user_id = $1', params: [user.id] },
+    { text: 'DELETE FROM login_attempts WHERE username = $1', params: [username] },
+  ]);
+}
+
+/**
+ * 로그인 결과. status가 'new'면 아직 없는 아이디라 계정을 만들지 않고 돌아온 것,
+ * 'mustChange'면 임시 비밀번호가 맞았지만 새 비밀번호를 정해야 해서 세션을 주지 않은 것.
+ */
 export type SignInResult =
   | { status: 'signedIn'; token: string; user: AuthUser; created: boolean }
-  | { status: 'new'; username: string };
+  | { status: 'new'; username: string }
+  | { status: 'mustChange'; username: string };
 
 /**
  * 아이디·비밀번호로 로그인한다.
  * 처음 보는 아이디는 오타로 계정이 갈라지지 않도록 create: true로 다시 요청해야 만든다.
+ * 초기화된 계정은 newPassword를 함께 보내야 비밀번호를 바꾸고 로그인한다.
  */
 export async function signIn(
   db: Db,
   username: string,
   password: string,
-  create = false,
+  { create = false, newPassword }: { create?: boolean; newPassword?: string } = {},
 ): Promise<SignInResult> {
-  let [user] = await db.query<UserRow>('SELECT id, username, password_hash FROM users WHERE username = $1', [username]);
+  let [user] = await db.query<UserRow>(
+    'SELECT id, username, password_hash, must_change_password FROM users WHERE username = $1',
+    [username],
+  );
   let created = false;
 
   if (user) {
@@ -99,6 +130,16 @@ export async function signIn(
       throw new ApiException('UNAUTHORIZED', '비밀번호가 맞지 않아요.');
     }
     await db.query('DELETE FROM login_attempts WHERE username = $1', [username]);
+    if (user.must_change_password) {
+      if (newPassword === undefined) return { status: 'mustChange', username };
+      const policyError = passwordPolicyError(newPassword);
+      if (policyError) throw new ApiException('BAD_REQUEST', policyError);
+      if (newPassword === password) throw new ApiException('BAD_REQUEST', '임시 비밀번호와 다른 비밀번호를 정하세요.');
+      await db.query('UPDATE users SET password_hash = $2, must_change_password = false WHERE id = $1', [
+        user.id,
+        await hashPassword(newPassword),
+      ]);
+    }
   } else {
     if (!create) return { status: 'new', username };
     const policyError = passwordPolicyError(password);
@@ -106,7 +147,7 @@ export async function signIn(
     const inserted = await db.query<UserRow>(
       `INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)
        ON CONFLICT (username) DO NOTHING
-       RETURNING id, username, password_hash`,
+       RETURNING id, username, password_hash, must_change_password`,
       [randomUUID(), username, await hashPassword(password)],
     );
     // 같은 아이디가 동시에 만들어졌으면 이번 요청은 로그인 실패로 처리한다.

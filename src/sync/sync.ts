@@ -4,6 +4,7 @@ import {
   deleteItem,
   fetchCollection,
   replaceCollection,
+  resetPasswordRequest,
   signInRequest,
   signOutRequest,
   upsertItems,
@@ -186,18 +187,24 @@ export function retrySync(): Promise<void> {
 /**
  * 아이디·비밀번호로 로그인하고 그 계정의 데이터를 불러온다.
  * 처음 보는 아이디면 계정을 만들지 않고 'new'를 돌려준다. 화면에서 확인받아 create: true로 다시 부른다.
+ * 초기화된 계정이면 'mustChange'를 돌려준다. 새 비밀번호를 받아 newPassword와 함께 다시 부른다.
  * 실패하면 ApiClientError를 던진다 (화면에서 메시지를 보여준다).
  */
 export async function signIn(
   username: string,
   password: string,
-  { create = false } = {},
-): Promise<{ status: 'new' } | { status: 'signedIn'; created: boolean }> {
-  const result = await signInRequest(username, password, create);
-  if (result.status === 'new') return { status: 'new' };
+  { create = false, newPassword }: { create?: boolean; newPassword?: string } = {},
+): Promise<{ status: 'new' } | { status: 'mustChange' } | { status: 'signedIn'; created: boolean }> {
+  const result = await signInRequest(username, password, create, newPassword);
+  if (result.status === 'new' || result.status === 'mustChange') return { status: result.status };
   setSync({ session: { token: result.token, user: result.user } });
   await reloadFromServer();
   return { status: 'signedIn', created: result.created };
+}
+
+/** 비밀번호를 오늘 날짜로 초기화하고 임시 비밀번호를 돌려준다. */
+export async function resetPassword(username: string): Promise<string> {
+  return (await resetPasswordRequest(username)).temporaryPassword;
 }
 
 /** 로그아웃. 다음 사람이 보지 않도록 이 기기의 목록도 비운다. */

@@ -24,6 +24,8 @@ type Call = { method: string; url: string; body?: unknown };
 /** /api/data 응답을 흉내 낸다. remote[collection]이 서버에 저장된 항목. */
 /** 아직 계정이 없는 아이디 (확인 전에는 만들지 않는다) */
 const newUsers = new Set<string>();
+/** 비밀번호가 초기화돼 새 비밀번호를 정해야 하는 아이디 */
+const resetUsers = new Set<string>();
 
 function mockApi(remote: Record<string, unknown[]>, error?: { code: string; message: string }) {
   const calls: Call[] = [];
@@ -36,7 +38,9 @@ function mockApi(remote: Record<string, unknown[]>, error?: { code: string; mess
       if (method !== 'POST') return Response.json({ ok: true, data: null });
       const data = body.create === false && newUsers.has(body.username)
         ? { status: 'new', username: body.username }
-        : { status: 'signedIn', ...SESSION, created: false };
+        : resetUsers.has(body.username) && body.newPassword === undefined
+          ? { status: 'mustChange', username: body.username }
+          : { status: 'signedIn', ...SESSION, created: false };
       return Response.json({ ok: true, data });
     }
     const collection = new URL(String(input), 'http://x').searchParams.get('collection')!;
@@ -51,6 +55,7 @@ beforeEach(() => {
   useCategoryStore.setState({ categories: [] });
   useLedgerStore.setState({ transactions: [], fixedItems: [] });
   newUsers.clear();
+  resetUsers.clear();
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -172,5 +177,18 @@ describe('sync', () => {
 
     expect(await signIn('zzam', '1234', { create: true })).toEqual({ status: 'signedIn', created: false });
     expect(useSyncStore.getState().session).toEqual(SESSION);
+  });
+
+  it('초기화된 계정은 새 비밀번호를 정하기 전까지 로그인하지 않는다', async () => {
+    useSyncStore.setState({ session: null });
+    resetUsers.add('zam');
+    const calls = mockApi({});
+
+    expect(await signIn('zam', '20261006')).toEqual({ status: 'mustChange' });
+    expect(useSyncStore.getState().session).toBeNull();
+
+    expect(await signIn('zam', '20261006', { newPassword: 'new-pass-2' })).toEqual({ status: 'signedIn', created: false });
+    expect(useSyncStore.getState().session).toEqual(SESSION);
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ username: 'zam', password: '20261006' });
   });
 });

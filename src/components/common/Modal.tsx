@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalProps {
   open: boolean;
@@ -32,7 +33,8 @@ export default function Modal({ open, title, onClose, children, placement = 'cen
 
   if (!open) return null;
 
-  return (
+  // body로 띄워서 backdrop-filter가 있는 헤더 같은 조상에 fixed 위치가 갇히지 않게 한다.
+  return createPortal(
     <div
       className={`fixed inset-0 bg-black/50 flex justify-center z-50 animate-fade-in ${PLACEMENT[placement].overlay}`}
       onClick={onClose}
@@ -47,6 +49,7 @@ export default function Modal({ open, title, onClose, children, placement = 'cen
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

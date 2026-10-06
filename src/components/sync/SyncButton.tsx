@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { PASSWORD_MAX, USERNAME_PATTERN, passwordPolicyError } from '../../../shared/data';
 import { useSyncStore, type SyncStatus } from '../../stores/syncStore';
-import { retrySync, signIn, signOut } from '../../sync/sync';
+import { resetPassword, retrySync, signIn, signOut } from '../../sync/sync';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
@@ -101,12 +101,15 @@ function SignInForm({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   /** 없는 아이디라 새로 만들지 확인받는 중 */
   const [confirmNew, setConfirmNew] = useState<string | null>(null);
-  const valid =
-    USERNAME_PATTERN.test(username.trim().toLowerCase()) &&
-    password.length >= 1 &&
-    password.length <= PASSWORD_MAX;
+  /** 비밀번호 초기화를 확인받는 중인 아이디 */
+  const [confirmReset, setConfirmReset] = useState<string | null>(null);
+  /** 임시 비밀번호로 로그인해서 새 비밀번호를 정하는 중 */
+  const [changing, setChanging] = useState<{ username: string; password: string } | null>(null);
+  const usernameValid = USERNAME_PATTERN.test(username.trim().toLowerCase());
+  const valid = usernameValid && password.length >= 1 && password.length <= PASSWORD_MAX;
   /** 새 계정을 만들 때만 적용하는 비밀번호 규칙 */
   const policyError = confirmNew ? passwordPolicyError(password) : null;
 
@@ -114,10 +117,12 @@ function SignInForm({ onClose }: { onClose: () => void }) {
     if (!valid || submitting) return;
     setSubmitting(true);
     setMessage(null);
+    setNotice(null);
     try {
       const result = await signIn(username.trim(), password, { create });
       // 없는 아이디면 계정을 만들기 전에 한 번 확인받는다 (오타로 계정이 갈라지지 않도록).
       if (result.status === 'new') setConfirmNew(username.trim().toLowerCase());
+      else if (result.status === 'mustChange') setChanging({ username: username.trim(), password });
       else setPassword('');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '로그인하지 못했어요.');
@@ -130,6 +135,58 @@ function SignInForm({ onClose }: { onClose: () => void }) {
     event.preventDefault();
     void send(false);
   };
+
+  const reset = async () => {
+    if (!confirmReset || submitting) return;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const temporary = await resetPassword(confirmReset);
+      setConfirmReset(null);
+      setPassword('');
+      setNotice(`비밀번호를 초기화했어요. 임시 비밀번호 ${temporary}(오늘 날짜)로 로그인한 뒤 새 비밀번호를 정하세요.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '비밀번호를 초기화하지 못했어요.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (changing) {
+    return (
+      <ChangePasswordForm
+        username={changing.username}
+        temporary={changing.password}
+        onCancel={() => {
+          setChanging(null);
+          setPassword('');
+        }}
+      />
+    );
+  }
+
+  if (confirmReset) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-gray-700 dark:text-gray-300">
+          <span className="font-semibold">{confirmReset}</span> 계정의 비밀번호를 오늘 날짜(예: 20261006)로
+          초기화할까요?
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          초기화하면 다른 기기에서는 로그아웃돼요. 임시 비밀번호로 로그인하면 새 비밀번호를 정해야 해요.
+        </p>
+        {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" onClick={() => setConfirmReset(null)} disabled={submitting}>
+            취소
+          </Button>
+          <Button type="button" onClick={() => void reset()} disabled={submitting}>
+            {submitting ? '초기화하는 중…' : '초기화'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (confirmNew) {
     return (
@@ -188,7 +245,23 @@ function SignInForm({ onClose }: { onClose: () => void }) {
           maxLength={PASSWORD_MAX}
         />
       </div>
+      {notice && <p className="text-sm text-indigo-600 dark:text-indigo-400">{notice}</p>}
       {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
+      <button
+        type="button"
+        onClick={() => {
+          if (!usernameValid) {
+            setMessage('초기화할 아이디를 먼저 입력하세요.');
+            return;
+          }
+          setMessage(null);
+          setNotice(null);
+          setConfirmReset(username.trim().toLowerCase());
+        }}
+        className="text-xs text-gray-500 dark:text-gray-400 underline hover:text-gray-700 dark:hover:text-gray-200"
+      >
+        비밀번호를 잊었어요
+      </button>
       <p className="text-xs text-gray-500 dark:text-gray-400">
         계정에 저장된 데이터가 있으면 이 기기의 목록이 그 데이터로 바뀌어요. 계정이 비어 있으면 이 기기의 목록을
         올려요.
@@ -199,6 +272,85 @@ function SignInForm({ onClose }: { onClose: () => void }) {
         </Button>
         <Button type="submit" disabled={!valid || submitting}>
           {submitting ? '로그인 중…' : '로그인'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** 초기화된 계정으로 로그인할 때 새 비밀번호를 정한다. 저장하면 바로 로그인된다. */
+function ChangePasswordForm({
+  username,
+  temporary,
+  onCancel,
+}: {
+  username: string;
+  temporary: string;
+  onCancel: () => void;
+}) {
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const policyError = next ? passwordPolicyError(next) : null;
+  const mismatch = confirm.length > 0 && confirm !== next;
+  const valid = next.length > 0 && !policyError && confirm === next;
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      await signIn(username, temporary, { newPassword: next });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '비밀번호를 바꾸지 못했어요.');
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <form onSubmit={(e) => void submit(e)} className="space-y-3">
+      <p className="text-sm text-gray-700 dark:text-gray-300">
+        임시 비밀번호로 로그인했어요. <span className="font-semibold">{username.toLowerCase()}</span> 계정에서 쓸 새
+        비밀번호를 정하세요.
+      </p>
+      <div className="space-y-1">
+        <label htmlFor="new-password" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          새 비밀번호
+        </label>
+        <Input
+          id="new-password"
+          type="password"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          autoComplete="new-password"
+          placeholder="영문·숫자·특수문자 섞어 8자 이상"
+          maxLength={PASSWORD_MAX}
+        />
+      </div>
+      <div className="space-y-1">
+        <label htmlFor="new-password-confirm" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+          새 비밀번호 확인
+        </label>
+        <Input
+          id="new-password-confirm"
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          autoComplete="new-password"
+          maxLength={PASSWORD_MAX}
+        />
+      </div>
+      {policyError && <p className="text-sm text-red-600 dark:text-red-400">{policyError}</p>}
+      {mismatch && <p className="text-sm text-red-600 dark:text-red-400">새 비밀번호가 서로 달라요.</p>}
+      {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
+          취소
+        </Button>
+        <Button type="submit" disabled={!valid || submitting}>
+          {submitting ? '저장하는 중…' : '저장하고 로그인'}
         </Button>
       </div>
     </form>
