@@ -1,6 +1,7 @@
 import {
   DEAL_PROVIDER_IDS,
   PROVIDER_LABEL,
+  REGION_SEARCH_PROVIDER_IDS,
   SEARCH_PROVIDER_IDS,
   SOURCE_PROVIDER_IDS,
   STOCK_PROVIDER_IDS,
@@ -22,6 +23,10 @@ export const SEARCH_PROVIDERS = toOptions(SEARCH_PROVIDER_IDS);
 export const SOURCE_PROVIDERS = toOptions(SOURCE_PROVIDER_IDS);
 
 const DEAL_PROVIDER_SET = new Set<ProviderId>(DEAL_PROVIDER_IDS);
+const REGION_SEARCH_PROVIDER_SET = new Set<ProviderId>(REGION_SEARCH_PROVIDER_IDS);
+
+/** 검색할 때 동네 이름이 필요한 공급자인지 (당근) */
+export const needsRegion = (provider: ProviderId): boolean => REGION_SEARCH_PROVIDER_SET.has(provider);
 
 /** 검색어 없이 특가 목록을 보여주는 공급자인지 */
 export function isDealProvider(provider: ProviderId): provider is DealProviderId {
