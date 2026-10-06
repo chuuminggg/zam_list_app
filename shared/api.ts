@@ -67,6 +67,8 @@ export interface ProviderInfo {
   enabled: boolean;
   /** 비활성 사유 (환경변수 누락 등) */
   reason?: string;
+  /** 검색은 되지만 상품 링크로 이동할 수 없을 때 그 사유 (예: 쿠팡 파트너스 키 없음) */
+  linkDisabled?: string;
 }
 
 /** 서버 어댑터가 정규화해서 내려주는 상품 검색 결과 */

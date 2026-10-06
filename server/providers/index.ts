@@ -16,6 +16,19 @@ function enabledByFlag(id: ProviderId, env: NodeJS.ProcessEnv): boolean {
   return flag.split(',').map((s) => s.trim()).includes(id);
 }
 
+/** 쿠팡 파트너스 키가 있어야 제휴 링크를 직접 만들 수 있다 */
+export function hasCoupangKeys(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.COUPANG_ACCESS_KEY?.trim() && env.COUPANG_SECRET_KEY?.trim());
+}
+
+/** 상품 링크로 이동할 수 없는 사유 */
+function linkDisabledReason(id: ProviderId, env: NodeJS.ProcessEnv): string | undefined {
+  if (id === 'coupang' && !hasCoupangKeys(env)) {
+    return '쿠팡 파트너스 키가 없어 상품 링크로 이동할 수 없습니다.';
+  }
+  return undefined;
+}
+
 export function getProviderInfo(id: ProviderId, env: NodeJS.ProcessEnv = process.env): ProviderInfo {
   const label = PROVIDER_LABEL[id];
   const requiredEnv = REQUIRED_ENV[id] ?? [];
@@ -26,7 +39,8 @@ export function getProviderInfo(id: ProviderId, env: NodeJS.ProcessEnv = process
   if (missing.length > 0) {
     return { id, label, enabled: false, reason: `환경변수 필요: ${missing.join(', ')}` };
   }
-  return { id, label, enabled: true };
+  const linkDisabled = linkDisabledReason(id, env);
+  return linkDisabled ? { id, label, enabled: true, linkDisabled } : { id, label, enabled: true };
 }
 
 export function listProviders(env: NodeJS.ProcessEnv = process.env): ProviderInfo[] {

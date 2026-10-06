@@ -15,6 +15,12 @@ describe('공급자 활성화', () => {
     expect(getProviderInfo('coupang', env).enabled).toBe(false);
   });
 
+  it('쿠팡은 파트너스 키가 없으면 검색은 되지만 링크 이동은 막는다', () => {
+    expect(getProviderInfo('coupang', {})).toMatchObject({ enabled: true, linkDisabled: expect.stringContaining('파트너스 키') });
+    expect(getProviderInfo('coupang', { COUPANG_ACCESS_KEY: 'a', COUPANG_SECRET_KEY: 's' }).linkDisabled).toBeUndefined();
+    expect(getProviderInfo('kurly', {}).linkDisabled).toBeUndefined();
+  });
+
   it('라우트가 지원하지 않는 공급자는 거부', () => {
     expect(requireProvider(url('provider=daiso'), ['daiso'], {})).toBe('daiso');
     expect(() => requireProvider(url('provider=kurly'), ['daiso'], {})).toThrow(ApiException);

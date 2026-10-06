@@ -26,6 +26,8 @@ interface WishCardProps {
   onRefresh: () => void;
   refreshing?: boolean;
   refreshError?: string;
+  /** 출처 쇼핑몰 링크로 이동할 수 없는 사유 (쿠팡 파트너스 키 없음 등). 있으면 링크를 숨긴다. */
+  linkDisabled?: string;
 }
 
 export default function WishCard({
@@ -35,6 +37,7 @@ export default function WishCard({
   onRefresh,
   refreshing = false,
   refreshError,
+  linkDisabled,
 }: WishCardProps) {
   const updateItem = useWishStore((s) => s.updateItem);
   const deleteItem = useWishStore((s) => s.deleteItem);
@@ -119,7 +122,9 @@ export default function WishCard({
         {item.memo && (
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 truncate">{item.memo}</p>
         )}
-        {item.url && (
+        {linkDisabled ? (
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{linkDisabled}</p>
+        ) : item.url && (
           <a
             href={item.url}
             target="_blank"
@@ -129,7 +134,7 @@ export default function WishCard({
             {sourceLabel ? `${sourceLabel}에서 보기` : '링크 열기'}
           </a>
         )}
-        {item.url && item.source?.provider === 'coupang' && (
+        {!linkDisabled && item.url && item.source?.provider === 'coupang' && (
           <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{COUPANG_AFFILIATE_NOTICE}</p>
         )}
       </div>

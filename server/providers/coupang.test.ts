@@ -32,7 +32,7 @@ describe('coupangRefetchQuery', () => {
 });
 
 describe('parseProxyProducts', () => {
-  it('k-skill-proxy 응답을 ProductResult로 변환한다', () => {
+  it('k-skill-proxy 응답을 ProductResult로 변환하고, 운영자 제휴 링크는 비운다', () => {
     const [rocket, normal, ...rest] = parseProxyProducts({
       items: [
         {
@@ -56,7 +56,7 @@ describe('parseProxyProducts', () => {
       externalId: '8234329353-95725585888',
       name: '홈리아 BLDC 무선 진공청소기',
       price: 129720,
-      url: link('8234329353', '95725585888'),
+      url: '',
       imageUrl: 'https://ads-partners.coupang.com/image1/a.jpg',
       badges: ['로켓배송'],
     });

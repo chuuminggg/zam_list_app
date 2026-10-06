@@ -2,14 +2,16 @@
  * 쿠팡 어댑터. 쿠팡 파트너스 Open API 상품 검색을 쓴다.
  *
  * - COUPANG_ACCESS_KEY / COUPANG_SECRET_KEY가 있으면 HMAC 서명으로 직접 호출한다.
- * - 없으면 k-skill-proxy(제3자 운영)가 대신 서명해 호출한다. 이때 링크의 제휴 수수료는 proxy 운영자에게 간다.
+ * - 없으면 k-skill-proxy(제3자 운영)가 대신 서명해 호출한다. proxy가 주는 링크는 운영자의 제휴 링크라
+ *   우리가 확인할 수 없으므로 링크를 비워서 내려준다 (화면에서 링크 이동 불가로 표시).
  *
- * 결과 링크는 전부 파트너스 제휴 링크라서 화면에 제휴 고지 문구를 함께 보여줘야 한다.
+ * 직접 호출한 결과 링크는 파트너스 제휴 링크라서 화면에 제휴 고지 문구를 함께 보여줘야 한다.
  */
 import { createHmac } from 'node:crypto';
 import type { ProductResult } from '../../shared/api.js';
 import { ApiException } from '../errors.js';
 import { fetchJson } from '../http.js';
+import { hasCoupangKeys } from './index.js';
 
 const LABEL = '쿠팡';
 const OPEN_API_ORIGIN = 'https://api-gateway.coupang.com';
@@ -67,7 +69,8 @@ export function coupangExternalId(productId: string, url?: string): string {
   return vendorItemId ? `${productId}-${vendorItemId}` : productId;
 }
 
-export function toProductResults(items: CoupangItem[]): ProductResult[] {
+/** linkable이 false면 상품 구분에만 링크를 쓰고 결과의 url은 비운다. */
+export function toProductResults(items: CoupangItem[], linkable = true): ProductResult[] {
   const seen = new Set<string>();
   const results: ProductResult[] = [];
   for (const item of items) {
@@ -83,7 +86,7 @@ export function toProductResults(items: CoupangItem[]): ProductResult[] {
       externalId,
       name: item.title ?? '',
       price: typeof item.price === 'number' ? item.price : undefined,
-      url: item.url,
+      url: linkable ? item.url : '',
       imageUrl: item.imageUrl,
       badges,
     });
@@ -91,6 +94,7 @@ export function toProductResults(items: CoupangItem[]): ProductResult[] {
   return results;
 }
 
+/** proxy 결과는 운영자의 제휴 링크라 url을 비운다. */
 export function parseProxyProducts(body: RawProxyResponse): ProductResult[] {
   return toProductResults(
     (body.items ?? []).map((p) => ({
@@ -102,6 +106,7 @@ export function parseProxyProducts(body: RawProxyResponse): ProductResult[] {
       isRocket: p.is_rocket,
       isFreeShipping: p.is_free_shipping,
     })),
+    false,
   );
 }
 
@@ -160,10 +165,9 @@ export async function searchCoupangProducts(
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<ProductResult[]> {
   const params = new URLSearchParams({ keyword: query, limit: String(Math.min(limit, MAX_LIMIT)) });
-  const accessKey = env.COUPANG_ACCESS_KEY?.trim();
-  const secretKey = env.COUPANG_SECRET_KEY?.trim();
-
-  if (accessKey && secretKey) {
+  if (hasCoupangKeys(env)) {
+    const accessKey = env.COUPANG_ACCESS_KEY!.trim();
+    const secretKey = env.COUPANG_SECRET_KEY!.trim();
     const search = params.toString();
     const body = await fetchJson<RawOpenApiResponse>(`${OPEN_API_ORIGIN}${OPEN_API_SEARCH_PATH}?${search}`, {
       label: LABEL,
