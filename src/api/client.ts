@@ -87,10 +87,18 @@ export const checkStock = (
 
 export type SignInResponse =
   | { status: 'signedIn'; token: string; user: AuthUser; created: boolean }
-  | { status: 'new'; username: string };
+  | { status: 'new'; username: string }
+  | { status: 'mustChange'; username: string };
 
-export const signInRequest = (username: string, password: string, create: boolean) =>
-  apiRequest<SignInResponse>('auth', { method: 'POST', body: { username, password, create } });
+export const signInRequest = (username: string, password: string, create: boolean, newPassword?: string) =>
+  apiRequest<SignInResponse>('auth', { method: 'POST', body: { username, password, create, newPassword } });
+
+export const resetPasswordRequest = (username: string) =>
+  apiRequest<{ temporaryPassword: string }>('auth', {
+    method: 'POST',
+    params: { action: 'reset' },
+    body: { username },
+  });
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 

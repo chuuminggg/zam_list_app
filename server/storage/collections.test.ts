@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Todo } from '../../shared/data.js';
 import * as auth from '../../api/auth.js';
 import { GET, POST, PUT, DELETE } from '../../api/data.js';
+import { temporaryPassword } from './auth.js';
 import { ensureSchema } from './db.js';
 import { createTestDb } from './testDb.js';
 
@@ -136,6 +137,40 @@ describe('/api/auth', () => {
     for (let i = 0; i < 4; i++) await wrong();
     await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } });
     for (let i = 0; i < 4; i++) expect((await wrong()).status).toBe(401);
+  });
+
+  it('임시 비밀번호는 한국 시간 기준 오늘 날짜다', () => {
+    expect(temporaryPassword(new Date('2026-10-05T16:00:00Z'))).toBe('20261006');
+    expect(temporaryPassword(new Date('2026-10-05T14:59:59Z'))).toBe('20261005');
+  });
+
+  it('비밀번호를 초기화하면 기존 세션이 끊기고, 새 비밀번호를 정해야 로그인된다', async () => {
+    const oldToken = await login('zam', PW);
+    const reset = await call(auth.POST, 'auth?action=reset', { body: { username: 'Zam' } });
+    expect(reset.json.data).toEqual({ temporaryPassword: temporaryPassword() });
+    expect((await call(auth.GET, 'auth', { token: oldToken })).status).toBe(401);
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: PW } })).status).toBe(401);
+
+    const temp = temporaryPassword();
+    const asked = await call(auth.POST, 'auth', { body: { username: 'zam', password: temp } });
+    expect(asked.json.data).toEqual({ status: 'mustChange', username: 'zam' });
+    expect(await db!.query('SELECT * FROM sessions')).toEqual([]);
+
+    // 규칙에 어긋나거나 임시 비밀번호와 같으면 바꾸지 않는다.
+    for (const newPassword of ['1234', temp]) {
+      const res = await call(auth.POST, 'auth', { body: { username: 'zam', password: temp, newPassword } });
+      expect(res.status).toBe(400);
+    }
+
+    const changed = await call(auth.POST, 'auth', { body: { username: 'zam', password: temp, newPassword: 'new-pass-2' } });
+    expect(changed.json.data).toMatchObject({ status: 'signedIn', user: { username: 'zam' } });
+    expect((await call(auth.POST, 'auth', { body: { username: 'zam', password: temp } })).status).toBe(401);
+    const again = await call(auth.POST, 'auth', { body: { username: 'zam', password: 'new-pass-2' } });
+    expect(again.json.data.status).toBe('signedIn');
+  });
+
+  it('없는 아이디는 초기화할 수 없다', async () => {
+    expect((await call(auth.POST, 'auth?action=reset', { body: { username: 'nobody' } })).status).toBe(404);
   });
 
   it('비밀번호와 세션 토큰 원문은 저장하지 않는다', async () => {
