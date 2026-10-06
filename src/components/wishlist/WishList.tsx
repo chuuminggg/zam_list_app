@@ -1,6 +1,7 @@
 import EmptyState from '../common/EmptyState';
 import WishCard from './WishCard';
 import { PROVIDER_LABEL } from '../../../shared/api';
+import { useProviders } from '../../hooks/useProviders';
 import type { WishItem, WishFilter, WishShopFilter } from '../../types';
 
 const EMPTY_COPY: Record<WishFilter, { title: string; description: string }> = {
@@ -33,6 +34,10 @@ export default function WishList({
   refreshing,
   refreshErrors,
 }: WishListProps) {
+  const providers = useProviders();
+  const linkDisabledOf = (item: WishItem) =>
+    item.source ? providers?.find((p) => p.id === item.source!.provider)?.linkDisabled : undefined;
+
   if (items.length === 0) {
     if (shopFilter !== 'all') {
       return (
@@ -57,6 +62,7 @@ export default function WishList({
           onRefresh={() => onRefresh(item)}
           refreshing={refreshing.has(item.id)}
           refreshError={refreshErrors[item.id]}
+          linkDisabled={linkDisabledOf(item)}
         />
       ))}
     </ul>

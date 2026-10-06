@@ -5,6 +5,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useWishStore } from '../stores/wishStore';
 import WishlistPage from './WishlistPage';
 
+/** 경로별로 매번 새 Response를 돌려주는 fetch 목. 지정하지 않은 경로는 빈 공급자 목록. */
+function mockApi(routes: Record<string, () => Response>) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const { pathname } = new URL(String(input), 'http://localhost');
+    return routes[pathname]?.() ?? Response.json({ ok: true, data: { providers: [] } });
+  });
+}
+
+const apiRequests = (fetchMock: ReturnType<typeof mockApi>) =>
+  fetchMock.mock.calls.map(([input]) => new URL(String(input), 'http://localhost'));
+
 afterEach(() => {
   // globals: false 라 자동 cleanup이 걸리지 않는다.
   cleanup();
@@ -40,12 +51,8 @@ describe('WishlistPage', () => {
       url: `https://ohou.se/productions/${externalId}/selling`,
       badges: ['47% 할인'],
     });
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-      const url = new URL(String(input), 'http://localhost');
-      if (url.pathname === '/api/deals') {
-        return Response.json({ ok: true, data: [deal('1', '베베앙 물티슈'), deal('2', '원목 침대')] });
-      }
-      return Response.json({ ok: true, data: { providers: [] } });
+    const fetchMock = mockApi({
+      '/api/deals': () => Response.json({ ok: true, data: [deal('1', '베베앙 물티슈'), deal('2', '원목 침대')] }),
     });
 
     render(<WishlistPage />);
@@ -55,8 +62,7 @@ describe('WishlistPage', () => {
 
     expect(await within(dialog).findByText('원목 침대')).toBeTruthy();
     expect(within(dialog).queryByLabelText('상품 검색어')).toBeNull();
-    const requested = fetchMock.mock.calls.map(([input]) => new URL(String(input), 'http://localhost'));
-    expect(requested.find((u) => u.pathname === '/api/deals')?.searchParams.get('provider')).toBe('ohou');
+    expect(apiRequests(fetchMock).find((u) => u.pathname === '/api/deals')?.searchParams.get('provider')).toBe('ohou');
 
     // 받은 목록 안에서만 거른다
     await userEvent.type(within(dialog).getByLabelText('특가 목록에서 찾기'), '침대');
@@ -68,6 +74,37 @@ describe('WishlistPage', () => {
       category: '오늘의집',
       source: { provider: 'ohou', externalId: '2' },
     });
+  });
+
+  it('쿠팡 파트너스 키가 없으면 쿠팡 탭과 카드에서 링크 이동을 막고 사유를 보여준다', async () => {
+    const reason = '쿠팡 파트너스 키가 없어 상품 링크로 이동할 수 없습니다.';
+    mockApi({
+      '/api/providers': () =>
+        Response.json({ ok: true, data: { providers: [{ id: 'coupang', label: '쿠팡', enabled: true, linkDisabled: reason }] } }),
+    });
+    useWishStore.setState({
+      items: [
+        {
+          id: 'c1',
+          name: '무선청소기',
+          status: 'want',
+          category: '쿠팡',
+          createdAt: new Date().toISOString(),
+          url: 'https://link.coupang.com/re/AFFSDP?pageKey=1',
+          source: { provider: 'coupang', externalId: '1-2' },
+        },
+      ],
+    });
+    render(<WishlistPage />);
+
+    expect(await screen.findByText(reason)).toBeTruthy();
+    expect(screen.queryByRole('link', { name: '쿠팡에서 보기' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
+    const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
+    await userEvent.click(within(dialog).getByRole('button', { name: '쿠팡' }));
+    expect(within(dialog).getByText(reason)).toBeTruthy();
+    expect(within(dialog).queryByText(/쿠팡 파트너스 활동을 통해/)).toBeNull();
   });
 
   it('쿠팡 탭과 쿠팡에서 담은 카드에는 제휴 고지 문구가 보인다', async () => {
@@ -95,17 +132,18 @@ describe('WishlistPage', () => {
   });
 
   it('서버에서 비활성화된 쇼핑몰은 사유와 함께 선택할 수 없게 표시한다', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        ok: true,
-        data: {
-          providers: [
-            { id: 'daiso', label: '다이소', enabled: true },
-            { id: 'oliveyoung', label: '올리브영', enabled: false, reason: 'PROVIDERS_ENABLED에 포함되지 않음' },
-          ],
-        },
-      })
-    );
+    mockApi({
+      '/api/providers': () =>
+        Response.json({
+          ok: true,
+          data: {
+            providers: [
+              { id: 'daiso', label: '다이소', enabled: true },
+              { id: 'oliveyoung', label: '올리브영', enabled: false, reason: 'PROVIDERS_ENABLED에 포함되지 않음' },
+            ],
+          },
+        }),
+    });
 
     render(<WishlistPage />);
     await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
@@ -244,20 +282,21 @@ describe('WishlistPage', () => {
         },
       ],
     });
-    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json({
-        ok: true,
-        data: {
-          provider: 'kurly',
-          externalId: '1',
-          name: '우유',
-          price: 4000,
-          url: 'https://www.kurly.com/goods/1',
-          soldOut: true,
-          badges: ['품절'],
-        },
-      })
-    );
+    const fetchMock = mockApi({
+      '/api/product': () =>
+        Response.json({
+          ok: true,
+          data: {
+            provider: 'kurly',
+            externalId: '1',
+            name: '우유',
+            price: 4000,
+            url: 'https://www.kurly.com/goods/1',
+            soldOut: true,
+            badges: ['품절'],
+          },
+        }),
+    });
 
     render(<WishlistPage />);
     await userEvent.click(screen.getByRole('button', { name: '가격·품절 다시 확인' }));
@@ -265,8 +304,7 @@ describe('WishlistPage', () => {
     expect(await screen.findByText('▼ 1,000원')).toBeTruthy();
     expect(screen.getByText('₩4,000')).toBeTruthy();
     expect(screen.getByText('품절')).toBeTruthy();
-    const requested = new URL(String(fetchMock.mock.calls[0][0]), 'http://localhost');
-    expect(requested.pathname).toBe('/api/product');
+    const requested = apiRequests(fetchMock).find((u) => u.pathname === '/api/product')!;
     expect(Object.fromEntries(requested.searchParams)).toEqual({ provider: 'kurly', id: '1', name: '우유' });
     // 방금 확인했으므로 전체 새로고침은 잠시 막힌다
     expect(screen.getByRole('button', { name: /전체 새로고침/ }).hasAttribute('disabled')).toBe(true);
@@ -285,12 +323,10 @@ describe('WishlistPage', () => {
         },
       ],
     });
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      Response.json(
-        { ok: false, error: { code: 'NOT_FOUND', message: '판매처에서 상품을 찾지 못했습니다.' } },
-        { status: 404 }
-      )
-    );
+    mockApi({
+      '/api/product': () =>
+        Response.json({ ok: false, error: { code: 'NOT_FOUND', message: '판매처에서 상품을 찾지 못했습니다.' } }, { status: 404 }),
+    });
 
     render(<WishlistPage />);
     await userEvent.click(screen.getByRole('button', { name: '가격·품절 다시 확인' }));

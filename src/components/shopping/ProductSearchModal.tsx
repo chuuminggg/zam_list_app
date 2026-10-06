@@ -25,6 +25,7 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
   const [addedCount, setAddedCount] = useState(0);
   const providers = useProviders();
   const options = withAvailability(SOURCE_PROVIDERS, providers);
+  const linkDisabled = providers?.find((p) => p.id === provider)?.linkDisabled;
 
   const addedIds = useMemo(
     () =>
@@ -38,7 +39,8 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
     if (addedIds.has(product.externalId)) return;
     addItem({
       name: product.name,
-      url: product.url,
+      // 링크로 이동할 수 없는 공급자(쿠팡 키 없음)는 url이 비어 온다.
+      url: product.url || undefined,
       price: product.price,
       imageUrl: product.imageUrl,
       category: PROVIDER_LABEL[provider],
@@ -73,8 +75,10 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
           autoFocus
         />
       )}
-      {provider === 'coupang' && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">{COUPANG_AFFILIATE_NOTICE}</p>
+      {linkDisabled ? (
+        <p className="text-xs text-amber-600 dark:text-amber-400">{linkDisabled}</p>
+      ) : (
+        provider === 'coupang' && <p className="text-xs text-gray-500 dark:text-gray-400">{COUPANG_AFFILIATE_NOTICE}</p>
       )}
       <div className="flex items-center gap-3 pt-2">
         {addedCount > 0 && (
