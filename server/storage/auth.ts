@@ -30,7 +30,7 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
 }
 
 /** 세션 토큰은 원문 대신 해시만 저장한다. */
-const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
+export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 export function normalizeUsername(value: unknown): string {
   const username = typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -86,6 +86,11 @@ export function temporaryPassword(now = new Date()): string {
 export async function resetPassword(db: Db, username: string): Promise<void> {
   const [user] = await db.query<{ id: string }>('SELECT id FROM users WHERE username = $1', [username]);
   if (!user) throw new ApiException('NOT_FOUND', '없는 아이디예요.');
+  // 카카오가 연결된 계정은 아이디만 알면 누구나 초기화할 수 있는 이 경로를 막고 카카오 로그인으로 들어오게 한다.
+  const linked = await db.query('SELECT 1 FROM kakao_links WHERE user_id = $1', [user.id]);
+  if (linked.length > 0) {
+    throw new ApiException('BAD_REQUEST', '카카오가 연결된 계정이에요. 비밀번호 대신 카카오로 로그인하세요.');
+  }
   await db.transaction([
     {
       text: 'UPDATE users SET password_hash = $2, must_change_password = true WHERE id = $1',
@@ -125,6 +130,9 @@ export async function signIn(
   if (user) {
     // 잠긴 동안에는 비밀번호를 확인하지 않아 추측 시도가 쌓이지 않게 한다.
     if (await isLocked(db, username)) throw new ApiException('RATE_LIMITED', LOCKED_MESSAGE);
+    if (!hasPassword(user.password_hash)) {
+      throw new ApiException('UNAUTHORIZED', '비밀번호 없이 카카오로 만든 계정이에요. 카카오로 로그인하세요.');
+    }
     if (!(await verifyPassword(password, user.password_hash))) {
       if (await recordFailure(db, username)) throw new ApiException('RATE_LIMITED', LOCKED_MESSAGE);
       throw new ApiException('UNAUTHORIZED', '비밀번호가 맞지 않아요.');
@@ -156,12 +164,41 @@ export async function signIn(
     created = true;
   }
 
+  return {
+    status: 'signedIn',
+    token: await createSession(db, user.id),
+    user: { id: user.id, username: user.username },
+    created,
+  };
+}
+
+/** 새 세션을 만들고 토큰 원문을 돌려준다. */
+export async function createSession(db: Db, userId: string): Promise<string> {
   const token = randomBytes(32).toString('base64url');
   await db.query(
     `INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, now() + make_interval(days => $3))`,
-    [hashToken(token), user.id, SESSION_DAYS],
+    [hashToken(token), userId, SESSION_DAYS],
   );
-  return { status: 'signedIn', token, user: { id: user.id, username: user.username }, created };
+  return token;
+}
+
+/** 비밀번호 없이 카카오로만 들어오는 계정의 password_hash. scrypt 형식이 아니라 어떤 비밀번호와도 맞지 않는다. */
+export const NO_PASSWORD = 'none';
+
+export const hasPassword = (passwordHash: string) => passwordHash.startsWith('scrypt$');
+
+/**
+ * 카카오로 처음 들어온 사람의 계정을 비밀번호 없이 만든다.
+ * 아이디가 이미 있으면 BAD_REQUEST (기존 계정이면 비밀번호로 연결해야 한다).
+ */
+export async function createPasswordlessUser(db: Db, username: string): Promise<AuthUser> {
+  const [user] = await db.query<AuthUser>(
+    `INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)
+     ON CONFLICT (username) DO NOTHING RETURNING id, username`,
+    [randomUUID(), username, NO_PASSWORD],
+  );
+  if (!user) throw new ApiException('BAD_REQUEST', '이미 있는 아이디예요. 다른 아이디를 정하세요.');
+  return user;
 }
 
 function bearerToken(request: Request): string {

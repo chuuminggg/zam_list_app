@@ -29,6 +29,17 @@ interface SyncStore {
   error: SyncError | null;
   /** 진행 중인 저장 요청 수 */
   pending: number;
+  /** 이 기기에서 로그인했던 아이디 (최근 순). 로그아웃해도 남겨서 아이디 찾기에 쓴다. */
+  recentUsernames: string[];
+}
+
+const MAX_RECENT_USERNAMES = 5;
+
+/** 로그인에 성공한 아이디를 맨 앞에 둔다. */
+export function rememberUsername(username: string) {
+  useSyncStore.setState((s) => ({
+    recentUsernames: [username, ...s.recentUsernames.filter((u) => u !== username)].slice(0, MAX_RECENT_USERNAMES),
+  }));
 }
 
 export const useSyncStore = create<SyncStore>()(
@@ -39,13 +50,14 @@ export const useSyncStore = create<SyncStore>()(
       status: 'idle',
       error: null,
       pending: 0,
+      recentUsernames: [],
     }),
     {
       name: 'zam-sync',
       // v0은 동기화 키 방식. 키는 버리고 로그인 후 서버가 비어 있으면 이 기기 데이터를 올린다.
       version: 1,
-      migrate: () => ({ session: null, lastSyncedUserId: null }),
-      partialize: ({ session, lastSyncedUserId }) => ({ session, lastSyncedUserId }),
+      migrate: () => ({ session: null, lastSyncedUserId: null, recentUsernames: [] }),
+      partialize: ({ session, lastSyncedUserId, recentUsernames }) => ({ session, lastSyncedUserId, recentUsernames }),
     }
   )
 );

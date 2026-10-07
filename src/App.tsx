@@ -3,6 +3,7 @@ import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import SyncButton from './components/sync/SyncButton';
 import ThemeToggle from './components/common/ThemeToggle';
 import { useTheme } from './hooks/useTheme';
+import KakaoCallbackPage from './pages/KakaoCallbackPage';
 import LedgerPage from './pages/LedgerPage';
 import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/" element={<TodoPage />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
+            <Route path="/auth/kakao" element={<KakaoCallbackPage />} />
           </Routes>
         </main>
       </div>
