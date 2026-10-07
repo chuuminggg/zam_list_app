@@ -10,6 +10,7 @@ import type {
   StockResult,
 } from '../../shared/api';
 import type { AuthUser, CollectionId, CollectionItem } from '../../shared/data';
+import type { KakaoCallbackResult, KakaoMode, KakaoState } from '../../shared/kakao';
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;
@@ -102,6 +103,43 @@ export const resetPasswordRequest = (username: string) =>
   });
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+const optionalAuth = (token?: string) => (token ? auth(token) : {});
+
+export const fetchKakaoState = (token?: string, signal?: AbortSignal) =>
+  apiRequest<KakaoState>('kakao', { headers: optionalAuth(token), signal });
+
+/** 카카오 로그인 화면 주소. link는 로그인한 계정에 카카오를 연결한다. */
+export const startKakaoRequest = (mode: KakaoMode, token?: string) =>
+  apiRequest<{ url: string }>('kakao', {
+    method: 'POST',
+    params: { action: 'start' },
+    headers: optionalAuth(token),
+    body: { mode },
+  });
+
+export const kakaoCallbackRequest = (code: string, state: string, token?: string) =>
+  apiRequest<KakaoCallbackResult>('kakao', {
+    method: 'POST',
+    params: { action: 'callback' },
+    headers: optionalAuth(token),
+    body: { code, state },
+  });
+
+type KakaoSignedIn = { status: 'signedIn'; token: string; user: AuthUser };
+
+export const kakaoSignUpRequest = (ticket: string, username: string) =>
+  apiRequest<KakaoSignedIn>('kakao', { method: 'POST', params: { action: 'signup' }, body: { ticket, username } });
+
+export const kakaoAttachRequest = (ticket: string, username: string, password: string) =>
+  apiRequest<KakaoSignedIn>('kakao', {
+    method: 'POST',
+    params: { action: 'attach' },
+    body: { ticket, username, password },
+  });
+
+export const unlinkKakaoRequest = (token: string) =>
+  apiRequest<null>('kakao', { method: 'DELETE', headers: auth(token) });
 
 export const signOutRequest = (token: string) => apiRequest<null>('auth', { method: 'DELETE', headers: auth(token) });
 

@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { PASSWORD_MAX, USERNAME_PATTERN, passwordPolicyError } from '../../../shared/data';
+import { unlinkKakaoRequest } from '../../api/client';
+import { useKakao } from '../../hooks/useKakao';
 import { useSyncStore, type SyncStatus } from '../../stores/syncStore';
 import { resetPassword, retrySync, signIn, signOut } from '../../sync/sync';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
+import KakaoButton from './KakaoButton';
 
 const ICON: Record<SyncStatus, string> = {
   idle: '☁️',
@@ -84,6 +87,8 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
         </div>
       )}
 
+      <KakaoSection token={session.token} />
+
       <div className="flex justify-end gap-2">
         <Button variant="ghost" onClick={() => void signOut()}>
           로그아웃
@@ -96,7 +101,104 @@ function AccountPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** 로그인한 계정의 카카오 연결 상태. 연결해 두면 아이디를 잊어도 카카오로 들어올 수 있다. */
+function KakaoSection({ token }: { token: string }) {
+  const { state, reload } = useKakao();
+  const [message, setMessage] = useState<string | null>(null);
+  const [unlinking, setUnlinking] = useState(false);
+  if (!state?.enabled) return null;
+
+  const unlink = async () => {
+    setUnlinking(true);
+    setMessage(null);
+    try {
+      await unlinkKakaoRequest(token);
+      await reload();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '연결을 끊지 못했어요.');
+    } finally {
+      setUnlinking(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2">
+      {state.link ? (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-gray-700 dark:text-gray-300">
+            카카오 연결됨
+            {state.link.nickname ? ` (${state.link.nickname})` : ''}
+          </p>
+          {state.hasPassword && (
+            <Button size="sm" variant="ghost" onClick={() => void unlink()} disabled={unlinking}>
+              {unlinking ? '끊는 중…' : '연결 끊기'}
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            카카오를 연결해 두면 아이디나 비밀번호를 잊어도 카카오로 로그인할 수 있어요.
+          </p>
+          <KakaoButton mode="link" label="카카오 연결하기" onError={setMessage} />
+        </>
+      )}
+      {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
+    </div>
+  );
+}
+
+/** 아이디 찾기: 이 기기에서 로그인했던 아이디와 카카오 로그인 */
+function FindUsernamePanel({ onPick, onBack }: { onPick: (username: string) => void; onBack: () => void }) {
+  const recent = useSyncStore((s) => s.recentUsernames);
+  const { state } = useKakao();
+  const [message, setMessage] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">아이디 찾기</p>
+      {recent.length > 0 ? (
+        <div className="space-y-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            이 기기에서 로그인했던 아이디예요. 눌러서 고르세요.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {recent.map((name) => (
+              <Button key={name} size="sm" variant="toggle" onClick={() => onPick(name)}>
+                {name}
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-500 dark:text-gray-400">이 기기에서 로그인한 기록이 없어요.</p>
+      )}
+      {state?.enabled && (
+        <div className="space-y-1">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            카카오를 연결해 둔 계정이면 카카오로 바로 로그인돼요.
+          </p>
+          <KakaoButton mode="login" label="카카오로 아이디 찾기" onError={setMessage} />
+        </div>
+      )}
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        둘 다 안 되면 쓰던 다른 기기에서 계정 메뉴를 열어 아이디를 확인하세요. 계정에 연락처를 저장하지 않아서 그 밖의
+        방법으로는 찾을 수 없어요.
+      </p>
+      {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
+      <div className="flex justify-end">
+        <Button type="button" variant="ghost" onClick={onBack}>
+          돌아가기
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function SignInForm({ onClose }: { onClose: () => void }) {
+  const { state: kakao } = useKakao();
+  /** 아이디 찾기 화면을 보는 중 */
+  const [finding, setFinding] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -107,7 +209,10 @@ function SignInForm({ onClose }: { onClose: () => void }) {
   /** 비밀번호 초기화를 확인받는 중인 아이디 */
   const [confirmReset, setConfirmReset] = useState<string | null>(null);
   /** 임시 비밀번호로 로그인해서 새 비밀번호를 정하는 중 */
-  const [changing, setChanging] = useState<{ username: string; password: string } | null>(null);
+  const [changing, setChanging] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
   const usernameValid = USERNAME_PATTERN.test(username.trim().toLowerCase());
   const valid = usernameValid && password.length >= 1 && password.length <= PASSWORD_MAX;
   /** 새 계정을 만들 때만 적용하는 비밀번호 규칙 */
@@ -151,6 +256,20 @@ function SignInForm({ onClose }: { onClose: () => void }) {
       setSubmitting(false);
     }
   };
+
+  if (finding) {
+    return (
+      <FindUsernamePanel
+        onPick={(name) => {
+          setUsername(name);
+          setMessage(null);
+          setNotice(`아이디 ${name}을(를) 넣었어요. 비밀번호를 입력하세요.`);
+          setFinding(false);
+        }}
+        onBack={() => setFinding(false)}
+      />
+    );
+  }
 
   if (changing) {
     return (
@@ -247,24 +366,36 @@ function SignInForm({ onClose }: { onClose: () => void }) {
       </div>
       {notice && <p className="text-sm text-indigo-600 dark:text-indigo-400">{notice}</p>}
       {message && <p className="text-sm text-red-600 dark:text-red-400">{message}</p>}
-      <button
-        type="button"
-        onClick={() => {
-          if (!usernameValid) {
-            setMessage('초기화할 아이디를 먼저 입력하세요.');
-            return;
-          }
-          setMessage(null);
-          setNotice(null);
-          setConfirmReset(username.trim().toLowerCase());
-        }}
-        className="text-xs text-gray-500 dark:text-gray-400 underline hover:text-gray-700 dark:hover:text-gray-200"
-      >
-        비밀번호를 잊었어요
-      </button>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setMessage(null);
+            setNotice(null);
+            setFinding(true);
+          }}
+          className="text-xs text-gray-500 dark:text-gray-400 underline hover:text-gray-700 dark:hover:text-gray-200"
+        >
+          아이디를 잊었어요
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!usernameValid) {
+              setMessage('초기화할 아이디를 먼저 입력하세요.');
+              return;
+            }
+            setMessage(null);
+            setNotice(null);
+            setConfirmReset(username.trim().toLowerCase());
+          }}
+          className="text-xs text-gray-500 dark:text-gray-400 underline hover:text-gray-700 dark:hover:text-gray-200"
+        >
+          비밀번호를 잊었어요
+        </button>
+      </div>
       <p className="text-xs text-gray-500 dark:text-gray-400">
-        계정에 저장된 데이터가 있으면 이 기기의 목록이 그 데이터로 바뀌어요. 계정이 비어 있으면 이 기기의 목록을
-        올려요.
+        계정에 저장된 데이터가 있으면 이 기기의 목록이 그 데이터로 바뀌어요. 계정이 비어 있으면 이 기기의 목록을 올려요.
       </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onClose}>
@@ -274,6 +405,11 @@ function SignInForm({ onClose }: { onClose: () => void }) {
           {submitting ? '로그인 중…' : '로그인'}
         </Button>
       </div>
+      {kakao?.enabled && (
+        <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
+          <KakaoButton mode="login" label="카카오로 로그인" onError={setMessage} />
+        </div>
+      )}
     </form>
   );
 }

@@ -57,6 +57,27 @@ const SCHEMA: Statement[] = [
       PRIMARY KEY (user_id, collection, id)
     )`,
   },
+  {
+    // 카카오 계정(회원번호)과 ZAM 계정 연결. 한 쪽에 하나씩만 연결된다.
+    text: `CREATE TABLE IF NOT EXISTS kakao_links (
+      user_id uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      kakao_id text NOT NULL UNIQUE,
+      nickname text,
+      linked_at timestamptz NOT NULL DEFAULT now()
+    )`,
+  },
+  {
+    // 카카오 로그인 진행 상태. state(로그인·연결 시작)와 ticket(연결 안 된 카카오 계정으로 가입·연결)을 해시로 둔다.
+    text: `CREATE TABLE IF NOT EXISTS oauth_states (
+      key_hash text PRIMARY KEY,
+      kind text NOT NULL,
+      user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+      redirect_uri text,
+      kakao_id text,
+      nickname text,
+      expires_at timestamptz NOT NULL
+    )`,
+  },
 ];
 
 const ready = new WeakMap<Db, Promise<void>>();

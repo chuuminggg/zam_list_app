@@ -1,17 +1,22 @@
-import type { CollectionId, CollectionItem } from '../../shared/data';
+import type { AuthUser, CollectionId, CollectionItem } from '../../shared/data';
+import type { KakaoCallbackResult, KakaoMode } from '../../shared/kakao';
 import {
   ApiClientError,
   deleteItem,
   fetchCollection,
+  kakaoAttachRequest,
+  kakaoCallbackRequest,
+  kakaoSignUpRequest,
   replaceCollection,
   resetPasswordRequest,
   signInRequest,
   signOutRequest,
+  startKakaoRequest,
   upsertItems,
 } from '../api/client';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useLedgerStore } from '../stores/ledgerStore';
-import { useSyncStore } from '../stores/syncStore';
+import { rememberUsername, useSyncStore } from '../stores/syncStore';
 import { useTodoStore } from '../stores/todoStore';
 import { useWishStore } from '../stores/wishStore';
 import { diffItems } from './diff';
@@ -197,9 +202,45 @@ export async function signIn(
 ): Promise<{ status: 'new' } | { status: 'mustChange' } | { status: 'signedIn'; created: boolean }> {
   const result = await signInRequest(username, password, create, newPassword);
   if (result.status === 'new' || result.status === 'mustChange') return { status: result.status };
-  setSync({ session: { token: result.token, user: result.user } });
-  await reloadFromServer();
+  await startSession(result.token, result.user);
   return { status: 'signedIn', created: result.created };
+}
+
+/** 받은 세션으로 로그인 상태를 만들고 그 계정의 데이터를 불러온다. */
+async function startSession(token: string, user: AuthUser) {
+  setSync({ session: { token, user } });
+  rememberUsername(user.username);
+  await reloadFromServer();
+}
+
+/** 카카오 로그인 화면으로 이동한다. link면 지금 로그인한 계정에 카카오를 연결한다. */
+export async function goToKakao(mode: KakaoMode): Promise<void> {
+  const { url } = await startKakaoRequest(mode, useSyncStore.getState().session?.token);
+  window.location.assign(url);
+}
+
+/**
+ * 카카오에서 돌아온 인가 코드를 처리한다. 연결된 계정이 있으면 바로 로그인한다.
+ * 연결된 계정이 없으면 'unlinked'와 티켓을 돌려준다 (화면에서 새 계정 또는 기존 계정 연결을 고른다).
+ */
+export async function finishKakao(code: string, state: string): Promise<KakaoCallbackResult> {
+  const result = await kakaoCallbackRequest(code, state, useSyncStore.getState().session?.token);
+  if (result.status === 'signedIn') await startSession(result.token, result.user);
+  return result;
+}
+
+/** 연결 안 된 카카오로 새 계정을 만들고 (existing이 있으면 기존 계정에 연결하고) 로그인한다. */
+export async function signInWithKakaoTicket(
+  ticket: string,
+  username: string,
+  existingPassword?: string,
+): Promise<AuthUser> {
+  const result =
+    existingPassword === undefined
+      ? await kakaoSignUpRequest(ticket, username)
+      : await kakaoAttachRequest(ticket, username, existingPassword);
+  await startSession(result.token, result.user);
+  return result.user;
 }
 
 /** 비밀번호를 오늘 날짜로 초기화하고 임시 비밀번호를 돌려준다. */
@@ -245,6 +286,10 @@ let started = false;
 export function startSync() {
   if (started) return;
   started = true;
+
+  // 이 기능 전부터 로그인해 있던 기기도 아이디를 기억해 둔다.
+  const { session } = useSyncStore.getState();
+  if (session) rememberUsername(session.user.username);
 
   for (const binding of BINDINGS) {
     (binding as Binding<CollectionId>).subscribe((next, prev) => pushChanges(binding.collection, next, prev));
