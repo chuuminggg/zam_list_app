@@ -5,7 +5,8 @@
  * - 검색: `/kr/search/buy-sell/?in=<동네>-<id>&q=<검색어>` 의 `_data` (2026-10 기준. 예전 `/kr/buy-sell/all/` 라우트는 막힘)
  * - 상세: `/kr/buy-sell/<nodeId>/` 의 `_data` — 판매 상태(판매중·예약중·거래완료)까지 확인된다
  *
- * 검색은 짧은 시간에 여러 번 부르면 오류 없이 빈 목록만 내려오는 경우가 있다. 우회하지 않고 안내만 한다.
+ * 검색은 오류 없이 매물·광고가 모두 빈 응답이 오는 경우가 있다(2026-10-06부터 계속, 상세는 정상).
+ * 우회하지 않고, 이때는 "결과 없음" 대신 결과를 받지 못했다고 안내하고 매물 링크로 담는 방법을 권한다.
  * 결과는 가까운 매물만 오지 않고 다른 지역 매물이 섞여서, 검색한 동네 중심에서의 거리를 배지로 붙인다.
  */
 import type { ProductResult } from '../../shared/api.js';
@@ -62,6 +63,7 @@ interface RawArticle {
 interface RawSearchResponse {
   searchRegion?: { id?: string; name?: string };
   buySellArticles?: RawArticle[];
+  productAds?: unknown[];
   regionCenterCoordinate?: Coordinate;
 }
 
@@ -188,6 +190,18 @@ export function parseDaangnDetail(body: RawDetailResponse): ProductResult {
   };
 }
 
+/**
+ * 매물도 광고도 하나도 없으면 당근이 검색 결과를 빼고 보낸 것으로 본다.
+ * 정상 응답에는 검색어와 무관하게 광고가 붙어 오고, 결과를 못 받을 때는 둘 다 비어 있었다.
+ * 정말 결과가 없는 검색과 완벽히 구분되지는 않아 안내 문구는 단정하지 않는다.
+ */
+export function isWithheldSearch(body: RawSearchResponse): boolean {
+  return (body.buySellArticles ?? []).length === 0 && (body.productAds ?? []).length === 0;
+}
+
+const WITHHELD_MESSAGE =
+  '당근이 지금 검색 결과를 보내주지 않아요. 매물 링크를 붙여 넣으면 바로 담을 수 있어요.';
+
 /** 동네 이름은 필수다. IP 기반 기본 위치에 기대지 않는다. */
 export async function searchDaangnProducts(query: string, limit: number, region?: string): Promise<ProductResult[]> {
   const regionName = region?.trim();
@@ -197,6 +211,7 @@ export async function searchDaangnProducts(query: string, limit: number, region?
   const resolved = await resolveDaangnRegion(regionName);
   const params = new URLSearchParams({ in: `${resolved.name}-${resolved.id}`, q: query, _data: SEARCH_ROUTE });
   const body = await fetchJson<RawSearchResponse>(`${ORIGIN}${SEARCH_PATH}?${params}`, { label: LABEL, headers: HEADERS });
+  if (isWithheldSearch(body)) throw new ApiException('BLOCKED', WITHHELD_MESSAGE);
   return parseDaangnSearch(body, limit);
 }
 
