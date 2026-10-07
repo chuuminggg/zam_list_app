@@ -45,6 +45,48 @@ describe('WishlistPage', () => {
     expect(within(dialog).getByLabelText('상품 검색어')).toBeTruthy();
   });
 
+  it('당근 탭에서 매물 링크를 붙여 넣어 불러오고 담을 수 있다', async () => {
+    const fetchMock = mockApi({
+      '/api/product': () =>
+        Response.json({
+          ok: true,
+          data: {
+            provider: 'daangn',
+            externalId: 'z2625h83h3nf',
+            name: '아이패드 에어3',
+            price: 250000,
+            url: 'https://www.daangn.com/kr/buy-sell/z2625h83h3nf/',
+            badges: ['판매중', '아라일동'],
+          },
+        }),
+    });
+
+    render(<WishlistPage />);
+    await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
+    const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
+    await userEvent.click(within(dialog).getByRole('button', { name: '당근' }));
+
+    const link = within(dialog).getByLabelText('당근 매물 링크');
+    await userEvent.type(link, '에어팟');
+    await userEvent.click(within(dialog).getByRole('button', { name: '불러오기' }));
+    expect(within(dialog).getByText(/당근 매물 링크가 아니에요/)).toBeTruthy();
+
+    await userEvent.clear(link);
+    // 예전 공유 링크(숫자 id)도 받는다
+    await userEvent.type(link, '이 글 보기 https://www.daangn.com/articles/1263017473');
+    await userEvent.click(within(dialog).getByRole('button', { name: '불러오기' }));
+    await userEvent.click(await within(dialog).findByRole('button', { name: /아이패드 에어3/ }));
+
+    const requested = apiRequests(fetchMock).find((u) => u.pathname === '/api/product')!;
+    expect(Object.fromEntries(requested.searchParams)).toMatchObject({ provider: 'daangn', id: '1263017473' });
+    // 담을 때는 상세가 알려준 짧은 id로 저장해 이후 재확인에 쓴다
+    expect(useWishStore.getState().items[0]).toMatchObject({
+      name: '아이패드 에어3',
+      url: 'https://www.daangn.com/kr/buy-sell/z2625h83h3nf/',
+      source: { provider: 'daangn', externalId: 'z2625h83h3nf' },
+    });
+  });
+
   it('당근 탭은 동네 이름을 함께 보내고 다음에 쓸 수 있게 기억한다', async () => {
     const fetchMock = mockApi({
       '/api/search': () =>

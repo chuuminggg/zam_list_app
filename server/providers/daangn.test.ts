@@ -4,6 +4,7 @@ import {
   daangnNodeId,
   distanceKm,
   fetchDaangnProduct,
+  isWithheldSearch,
   parseDaangnDetail,
   parseDaangnPrice,
   parseDaangnSearch,
@@ -153,10 +154,35 @@ describe('searchDaangnProducts', () => {
     expect(headers['User-Agent']).toMatch(/^zam-list-app\//);
   });
 
+  it('매물·광고가 모두 비어 오면 결과를 받지 못했다고 안내한다', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/kr/api/v1/regions/keyword') {
+        return okJson({ locations: [{ id: 6407, name: '면목동', name1: '서울특별시', name3: '면목동', depth: 3 }] });
+      }
+      // 2026-10-07 실제로 받은 응답 형태: 지역·연관 검색어는 오는데 매물·광고만 빈 배열
+      return okJson({ keyword: '에어팟', searchRegion: { id: '6407', name: '면목동' }, buySellArticles: [], productAds: [] });
+    });
+
+    await expect(searchDaangnProducts('에어팟', 10, '면목동')).rejects.toMatchObject({
+      code: 'BLOCKED',
+      message: expect.stringContaining('매물 링크'),
+    });
+  });
+
   it('없는 동네면 NOT_FOUND', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(okJson({ locations: [] }));
 
     await expect(searchDaangnProducts('아이패드', 3, '없는동')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('isWithheldSearch', () => {
+  it('매물이나 광고 중 하나라도 있으면 정상 응답', () => {
+    expect(isWithheldSearch({ buySellArticles: [], productAds: [] })).toBe(true);
+    expect(isWithheldSearch({})).toBe(true);
+    expect(isWithheldSearch({ buySellArticles: [], productAds: [{}] })).toBe(false);
+    expect(isWithheldSearch(fixture('daangn-search.json'))).toBe(false);
   });
 });
 

@@ -93,7 +93,7 @@ export default function ProductPicker({
       {state.status === 'success' && state.data.length === 0 && (
         <p className="text-sm text-gray-500 dark:text-gray-400">
           검색 결과가 없어요.
-          {withRegion && ' 당근은 짧은 시간에 여러 번 검색하면 빈 결과가 올 수 있어요. 잠시 뒤 다시 해보세요.'}
+          {withRegion && ' 아래에서 매물 링크로 담아 보세요.'}
         </p>
       )}
       {state.status === 'success' && state.data.length > 0 && (

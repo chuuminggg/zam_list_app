@@ -10,6 +10,7 @@ import { useProviders } from '../../hooks/useProviders';
 import { useWishStore } from '../../stores/wishStore';
 import Button from '../common/Button';
 import Modal from '../common/Modal';
+import DaangnLinkPicker from './DaangnLinkPicker';
 import DealPicker from './DealPicker';
 import ProductPicker from './ProductPicker';
 import ProviderToggle from './ProviderToggle';
@@ -74,6 +75,9 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
           selectedLabel="담김 ✓"
           autoFocus
         />
+      )}
+      {provider === 'daangn' && (
+        <DaangnLinkPicker onSelect={handleAdd} selectedIds={addedIds} actionLabel="+ 담기" selectedLabel="담김 ✓" />
       )}
       {linkDisabled ? (
         <p className="text-xs text-amber-600 dark:text-amber-400">{linkDisabled}</p>
