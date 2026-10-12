@@ -87,6 +87,26 @@ describe('WishlistPage', () => {
     });
   });
 
+  it('당근 검색 결과를 못 받으면 오류 대신 안내를 보여준다', async () => {
+    const notice = '당근이 지금 검색 결과를 보내주지 않아요. 매물 링크를 붙여 넣으면 바로 담을 수 있어요.';
+    mockApi({ '/api/search': () => Response.json({ ok: true, data: [], notice }) });
+    useSearchPrefsStore.setState({ region: '면목동' });
+
+    render(<WishlistPage />);
+    await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
+    const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
+    await userEvent.click(within(dialog).getByRole('button', { name: '당근' }));
+    // 링크 입력칸이 먼저 보인다
+    expect(within(dialog).getByLabelText('당근 매물 링크')).toBeTruthy();
+
+    await userEvent.click(within(dialog).getByText(/동네·키워드로 검색/));
+    await userEvent.type(within(dialog).getByLabelText('상품 검색어'), '에어팟');
+    await userEvent.click(within(dialog).getByRole('button', { name: '검색' }));
+
+    expect(await within(dialog).findByText(notice)).toBeTruthy();
+    expect(within(dialog).queryByText(/검색 결과가 없어요/)).toBeNull();
+  });
+
   it('당근 탭은 동네 이름을 함께 보내고 다음에 쓸 수 있게 기억한다', async () => {
     const fetchMock = mockApi({
       '/api/search': () =>
@@ -109,6 +129,11 @@ describe('WishlistPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /상품 검색/ }));
     const dialog = screen.getByRole('dialog', { name: '상품 검색해서 담기' });
     await userEvent.click(within(dialog).getByRole('button', { name: '당근' }));
+    // 검색은 접혀 있다
+    const fold = within(dialog).getByText(/동네·키워드로 검색/).closest('details')!;
+    expect(fold.open).toBe(false);
+    await userEvent.click(within(dialog).getByText(/동네·키워드로 검색/));
+    expect(fold.open).toBe(true);
 
     const search = within(dialog).getByRole('button', { name: '검색' });
     await userEvent.type(within(dialog).getByLabelText('상품 검색어'), '아이패드');

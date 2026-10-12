@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GET as searchRoute } from '../../api/search.js';
+import { WithheldResultsError } from '../errors.js';
 import {
   daangnNodeId,
   distanceKm,
@@ -154,19 +156,36 @@ describe('searchDaangnProducts', () => {
     expect(headers['User-Agent']).toMatch(/^zam-list-app\//);
   });
 
-  it('매물·광고가 모두 비어 오면 결과를 받지 못했다고 안내한다', async () => {
+  // 2026-10-07 실제로 받은 응답 형태: 지역·연관 검색어는 오는데 매물·광고만 빈 배열 (배포 환경도 같음)
+  const mockWithheld = () =>
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = new URL(String(input));
       if (url.pathname === '/kr/api/v1/regions/keyword') {
         return okJson({ locations: [{ id: 6407, name: '면목동', name1: '서울특별시', name3: '면목동', depth: 3 }] });
       }
-      // 2026-10-07 실제로 받은 응답 형태: 지역·연관 검색어는 오는데 매물·광고만 빈 배열
       return okJson({ keyword: '에어팟', searchRegion: { id: '6407', name: '면목동' }, buySellArticles: [], productAds: [] });
     });
 
-    await expect(searchDaangnProducts('에어팟', 10, '면목동')).rejects.toMatchObject({
-      code: 'BLOCKED',
-      message: expect.stringContaining('매물 링크'),
+  it('매물·광고가 모두 비어 오면 결과를 받지 못했다고 알린다', async () => {
+    mockWithheld();
+
+    const search = searchDaangnProducts('에어팟', 10, '면목동');
+    await expect(search).rejects.toBeInstanceOf(WithheldResultsError);
+    await expect(search).rejects.toThrow(/매물 링크/);
+  });
+
+  it('/api/search는 이 경우 오류가 아니라 200 + 빈 목록 + 안내로 응답한다 (콘솔에 실패 요청이 찍히지 않게)', async () => {
+    mockWithheld();
+    const url = 'http://localhost/api/search?provider=daangn&q=%EC%97%90%EC%96%B4%ED%8C%9F&limit=10&region=%EB%A9%B4%EB%AA%A9%EB%8F%99';
+
+    const response = await searchRoute(new Request(url));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(await response.json()).toEqual({
+      ok: true,
+      data: [],
+      notice: expect.stringContaining('당근이 지금 검색 결과를 보내주지 않아요'),
     });
   });
 

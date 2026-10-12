@@ -13,13 +13,20 @@ interface DaangnLinkPickerProps {
   selectedIds?: ReadonlySet<string>;
   actionLabel?: string;
   selectedLabel?: string;
+  autoFocus?: boolean;
 }
 
 /**
- * 당근 매물 링크를 붙여 넣어 담는다. 검색 결과를 받지 못할 때도 상세 조회는 되므로
- * 링크의 매물을 다시 불러와 제목·가격·사진·판매상태를 채운다.
+ * 당근 매물 링크를 붙여 넣어 담는다. 당근 검색은 서버 요청에 결과를 비워 보내지만(배포 환경 포함) 상세 조회는 되므로
+ * 당근 탭의 기본 방법으로 쓴다. 링크의 매물을 다시 불러와 제목·가격·사진·판매상태를 채운다.
  */
-export default function DaangnLinkPicker({ onSelect, selectedIds, actionLabel, selectedLabel }: DaangnLinkPickerProps) {
+export default function DaangnLinkPicker({
+  onSelect,
+  selectedIds,
+  actionLabel,
+  selectedLabel,
+  autoFocus,
+}: DaangnLinkPickerProps) {
   const [link, setLink] = useState('');
   const [invalid, setInvalid] = useState(false);
   const { state, run } = useApiRequest<ProductResult>();
@@ -33,14 +40,17 @@ export default function DaangnLinkPicker({ onSelect, selectedIds, actionLabel, s
   };
 
   return (
-    <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-      <p className="text-xs font-medium text-gray-600 dark:text-gray-300">또는 매물 링크로 담기</p>
+    <div className="space-y-2">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        당근 앱·웹에서 매물 → 공유 → 링크 복사 후 붙여 넣어 주세요. 공유 문구째 붙여 넣어도 돼요.
+      </p>
       <form onSubmit={handleSubmit} className="flex gap-2">
         <Input
           accent="purple"
           aria-label="당근 매물 링크"
           placeholder="https://www.daangn.com/kr/buy-sell/…"
           value={link}
+          autoFocus={autoFocus}
           onChange={(e) => {
             setLink(e.target.value);
             setInvalid(false);

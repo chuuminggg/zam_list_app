@@ -6,12 +6,13 @@
  * - 상세: `/kr/buy-sell/<nodeId>/` 의 `_data` — 판매 상태(판매중·예약중·거래완료)까지 확인된다
  *
  * 검색은 오류 없이 매물·광고가 모두 빈 응답이 오는 경우가 있다(2026-10-06부터 계속, 상세는 정상).
- * 우회하지 않고, 이때는 "결과 없음" 대신 결과를 받지 못했다고 안내하고 매물 링크로 담는 방법을 권한다.
+ * 배포(Vercel)에서도 같아서 서버 요청 전반이 막힌 것으로 본다. 우회하지 않고, 이때는 "결과 없음" 대신
+ * 결과를 받지 못했다고 안내하고 매물 링크로 담는 방법을 권한다 (오류가 아니라 빈 목록 + 안내로 응답).
  * 결과는 가까운 매물만 오지 않고 다른 지역 매물이 섞여서, 검색한 동네 중심에서의 거리를 배지로 붙인다.
  */
 import type { ProductResult } from '../../shared/api.js';
 import { cached } from '../cache/cache.js';
-import { ApiException } from '../errors.js';
+import { ApiException, WithheldResultsError } from '../errors.js';
 import { fetchJson } from '../http.js';
 
 const LABEL = '당근';
@@ -211,7 +212,7 @@ export async function searchDaangnProducts(query: string, limit: number, region?
   const resolved = await resolveDaangnRegion(regionName);
   const params = new URLSearchParams({ in: `${resolved.name}-${resolved.id}`, q: query, _data: SEARCH_ROUTE });
   const body = await fetchJson<RawSearchResponse>(`${ORIGIN}${SEARCH_PATH}?${params}`, { label: LABEL, headers: HEADERS });
-  if (isWithheldSearch(body)) throw new ApiException('BLOCKED', WITHHELD_MESSAGE);
+  if (isWithheldSearch(body)) throw new WithheldResultsError(WITHHELD_MESSAGE);
   return parseDaangnSearch(body, limit);
 }
 

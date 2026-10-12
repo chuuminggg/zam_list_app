@@ -64,6 +64,32 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
           actionLabel="+ 담기"
           selectedLabel="담김 ✓"
         />
+      ) : provider === 'daangn' ? (
+        // 당근은 검색 결과를 받지 못하는 경우가 대부분이라 매물 링크로 담기를 먼저 보여주고 검색은 접어 둔다.
+        <div key={provider} className="space-y-3">
+          <DaangnLinkPicker
+            onSelect={handleAdd}
+            selectedIds={addedIds}
+            actionLabel="+ 담기"
+            selectedLabel="담김 ✓"
+            autoFocus
+          />
+          <details className="rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2">
+            <summary className="cursor-pointer select-none text-xs text-gray-500 dark:text-gray-400">
+              동네·키워드로 검색 (지금은 당근이 결과를 보내주지 않을 수 있어요)
+            </summary>
+            <div className="pt-2">
+              <ProductPicker
+                provider={provider}
+                initialQuery=""
+                onSelect={handleAdd}
+                selectedIds={addedIds}
+                actionLabel="+ 담기"
+                selectedLabel="담김 ✓"
+              />
+            </div>
+          </details>
+        </div>
       ) : (
         <ProductPicker
           key={provider}
@@ -75,9 +101,6 @@ export default function ProductSearchModal({ onClose }: ProductSearchModalProps)
           selectedLabel="담김 ✓"
           autoFocus
         />
-      )}
-      {provider === 'daangn' && (
-        <DaangnLinkPicker onSelect={handleAdd} selectedIds={addedIds} actionLabel="+ 담기" selectedLabel="담김 ✓" />
       )}
       {linkDisabled ? (
         <p className="text-xs text-amber-600 dark:text-amber-400">{linkDisabled}</p>
