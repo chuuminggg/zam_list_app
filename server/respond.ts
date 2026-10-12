@@ -8,14 +8,14 @@ function json<T>(body: ApiResponse<T>, status: number, headers: Record<string, s
 }
 
 /**
- * 성공 응답. cacheSeconds > 0 이면 Vercel CDN 캐시를 켠다.
+ * 성공 응답. cacheSeconds > 0 이면 Vercel CDN 캐시를 켠다. notice는 화면에 함께 보여줄 안내.
  */
-export function ok<T>(data: T, cacheSeconds = 0): Response {
+export function ok<T>(data: T, cacheSeconds = 0, notice?: string): Response {
   const cacheControl =
     cacheSeconds > 0
       ? `public, s-maxage=${cacheSeconds}, stale-while-revalidate=${cacheSeconds * 2}`
       : 'no-store';
-  return json({ ok: true, data }, 200, { 'Cache-Control': cacheControl });
+  return json(notice ? { ok: true, data, notice } : { ok: true, data }, 200, { 'Cache-Control': cacheControl });
 }
 
 export function fail(error: unknown): Response {

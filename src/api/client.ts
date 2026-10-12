@@ -32,11 +32,11 @@ interface RequestOptions {
   signal?: AbortSignal;
 }
 
-/** `/api/*` 호출. 실패 응답은 ApiClientError로 던진다. */
-export async function apiRequest<T>(
+/** `/api/*` 호출하고 응답 본문(data + 안내 notice)을 돌려준다. 실패 응답은 ApiClientError로 던진다. */
+async function apiRequestWithNotice<T>(
   path: string,
   { method = 'GET', params = {}, body, headers = {}, signal }: RequestOptions = {},
-): Promise<T> {
+): Promise<{ data: T; notice?: string }> {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== '') search.set(key, String(value));
@@ -58,8 +58,12 @@ export async function apiRequest<T>(
   }
 
   if (!result.ok) throw new ApiClientError(result.error.code, result.error.message);
-  return result.data;
+  return { data: result.data, notice: result.notice };
 }
+
+/** `/api/*` 호출. 실패 응답은 ApiClientError로 던진다. */
+export const apiRequest = <T>(path: string, options: RequestOptions = {}): Promise<T> =>
+  apiRequestWithNotice<T>(path, options).then((r) => r.data);
 
 export const apiGet = <T>(path: string, params: Params = {}, signal?: AbortSignal) =>
   apiRequest<T>(path, { params, signal });
@@ -67,9 +71,22 @@ export const apiGet = <T>(path: string, params: Params = {}, signal?: AbortSigna
 export const fetchProviders = (signal?: AbortSignal) =>
   apiGet<{ providers: ProviderInfo[] }>('providers', {}, signal).then((d) => d.providers);
 
+export interface ProductSearchResult {
+  items: ProductResult[];
+  /** 결과를 받지 못했을 때 등 화면에 보여줄 안내 (예: 당근이 검색 결과를 비워 보냄) */
+  notice?: string;
+}
+
 /** region은 당근처럼 동네 이름이 필요한 공급자만 보낸다. */
-export const searchProducts = (provider: SearchProviderId, q: string, signal?: AbortSignal, region?: string) =>
-  apiGet<ProductResult[]>('search', { provider, q, limit: 10, region }, signal);
+export const searchProducts = (
+  provider: SearchProviderId,
+  q: string,
+  signal?: AbortSignal,
+  region?: string,
+): Promise<ProductSearchResult> =>
+  apiRequestWithNotice<ProductResult[]>('search', { params: { provider, q, limit: 10, region }, signal }).then(
+    ({ data, notice }) => ({ items: data, notice }),
+  );
 
 /** 오늘의집 오늘의딜 같은 특가 목록 (검색어 없음) */
 export const fetchDeals = (provider: DealProviderId, signal?: AbortSignal) =>

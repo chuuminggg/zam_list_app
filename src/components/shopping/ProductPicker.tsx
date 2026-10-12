@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import type { ProductResult, SearchProviderId } from '../../../shared/api';
-import { searchProducts } from '../../api/client';
+import { searchProducts, type ProductSearchResult } from '../../api/client';
 import { needsRegion } from '../../constants/shopping';
 import { useApiRequest } from '../../hooks/useApiRequest';
 import { useSearchPrefsStore } from '../../stores/searchPrefsStore';
@@ -34,7 +34,7 @@ export default function ProductPicker({
   const savedRegion = useSearchPrefsStore((s) => s.region);
   const setSavedRegion = useSearchPrefsStore((s) => s.setRegion);
   const [region, setRegion] = useState(savedRegion);
-  const { state, run } = useApiRequest<ProductResult[]>();
+  const { state, run } = useApiRequest<ProductSearchResult>();
   const withRegion = needsRegion(provider);
   const canSearch = query.trim().length >= 2 && (!withRegion || region.trim().length >= 2);
 
@@ -90,15 +90,18 @@ export default function ProductPicker({
       )}
       {state.status === 'loading' && <p className="text-sm text-gray-500 dark:text-gray-400">검색 중…</p>}
       {state.status === 'error' && <p className="text-sm text-red-500">{state.message}</p>}
-      {state.status === 'success' && state.data.length === 0 && (
+      {state.status === 'success' && state.data.notice && (
+        <p className="text-sm text-amber-600 dark:text-amber-400">{state.data.notice}</p>
+      )}
+      {state.status === 'success' && !state.data.notice && state.data.items.length === 0 && (
         <p className="text-sm text-gray-500 dark:text-gray-400">
           검색 결과가 없어요.
-          {withRegion && ' 아래에서 매물 링크로 담아 보세요.'}
+          {withRegion && ' 위에서 매물 링크로 담아 보세요.'}
         </p>
       )}
-      {state.status === 'success' && state.data.length > 0 && (
+      {state.status === 'success' && state.data.items.length > 0 && (
         <ProductResultList
-          products={state.data}
+          products={state.data.items}
           onSelect={onSelect}
           selectedIds={selectedIds}
           actionLabel={actionLabel}

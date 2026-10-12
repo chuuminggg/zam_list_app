@@ -20,7 +20,8 @@ export interface ApiError {
   message: string;
 }
 
-export type ApiResponse<T> = { ok: true; data: T } | { ok: false; error: ApiError };
+/** notice: 성공했지만 사용자에게 알릴 안내 (예: 외부 서비스가 결과를 비워 보냄) */
+export type ApiResponse<T> = { ok: true; data: T; notice?: string } | { ok: false; error: ApiError };
 
 export type ProviderId =
   | 'kurly'
