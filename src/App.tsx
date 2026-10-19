@@ -6,6 +6,7 @@ import { useTheme } from './hooks/useTheme';
 import FortunePage from './pages/FortunePage';
 import KakaoCallbackPage from './pages/KakaoCallbackPage';
 import LedgerPage from './pages/LedgerPage';
+import ReportPage from './pages/ReportPage';
 import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
 import { startSync } from './sync/sync';
@@ -50,6 +51,12 @@ export default function App() {
             >
               운세
             </NavLink>
+            <NavLink
+              to="/report"
+              className={({ isActive }) => `${NAV_BASE} ${isActive ? NAV_ACTIVE : NAV_IDLE}`}
+            >
+              리포트
+            </NavLink>
             <div className="ml-auto flex items-center">
               <SyncButton />
               <ThemeToggle />
@@ -62,6 +69,7 @@ export default function App() {
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/fortune" element={<FortunePage />} />
+            <Route path="/report" element={<ReportPage />} />
             <Route path="/auth/kakao" element={<KakaoCallbackPage />} />
           </Routes>
         </main>
