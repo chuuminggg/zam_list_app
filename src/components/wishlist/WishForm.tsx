@@ -5,6 +5,7 @@ import Input from '../common/Input';
 import Modal from '../common/Modal';
 import Select from '../common/Select';
 import { STATUSES, STATUS_LABEL } from '../../constants/wish';
+import { syncWishPurchase } from '../../stores/wishPurchase';
 import { useWishStore } from '../../stores/wishStore';
 import type { WishItem } from '../../types';
 
@@ -62,10 +63,12 @@ export default function WishForm({ open, onClose, item }: WishFormProps) {
       category: form.category.trim(),
       status: form.status,
     };
+    // "구매함"으로 바뀌었거나 해제됐으면 가계부도 맞춘다.
     if (item) {
       updateItem(item.id, payload);
+      syncWishPurchase({ ...item, ...payload }, item.status);
     } else {
-      addItem(payload);
+      syncWishPurchase(addItem(payload), undefined);
     }
     onClose();
   };

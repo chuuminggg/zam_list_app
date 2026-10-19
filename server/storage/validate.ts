@@ -179,6 +179,7 @@ export function parseTransaction(value: unknown): Transaction {
     category: str(obj, 'category', 30, 1),
     date: pattern(obj, 'date', DATE_PATTERN),
     memo: optStr(obj, 'memo', 500),
+    wishId: optPattern(obj, 'wishId', ID_PATTERN),
     createdAt: str(obj, 'createdAt', 40, 1),
   });
 }

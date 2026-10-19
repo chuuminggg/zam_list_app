@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import SyncButton from './components/sync/SyncButton';
 import ThemeToggle from './components/common/ThemeToggle';
+import Toaster from './components/common/Toaster';
+import LedgerSheetHost from './components/ledger/LedgerSheetHost';
 import { useTheme } from './hooks/useTheme';
 import FortunePage from './pages/FortunePage';
 import KakaoCallbackPage from './pages/KakaoCallbackPage';
@@ -73,6 +75,8 @@ export default function App() {
             <Route path="/auth/kakao" element={<KakaoCallbackPage />} />
           </Routes>
         </main>
+        <LedgerSheetHost />
+        <Toaster />
       </div>
     </BrowserRouter>
   );

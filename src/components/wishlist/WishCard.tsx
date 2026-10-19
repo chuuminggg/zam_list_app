@@ -4,6 +4,7 @@ import Select from '../common/Select';
 import { COUPANG_AFFILIATE_NOTICE, PROVIDER_LABEL } from '../../../shared/api';
 import { supportsStockCheck } from '../../constants/shopping';
 import { STATUSES, STATUS_LABEL, STATUS_TONE } from '../../constants/wish';
+import { setWishStatus } from '../../stores/wishPurchase';
 import { useWishStore } from '../../stores/wishStore';
 import type { WishItem } from '../../types';
 import { canRefresh, priceChange } from '../../utils/wishRefresh';
@@ -39,7 +40,6 @@ export default function WishCard({
   refreshError,
   linkDisabled,
 }: WishCardProps) {
-  const updateItem = useWishStore((s) => s.updateItem);
   const deleteItem = useWishStore((s) => s.deleteItem);
   const sourceLabel = item.source ? PROVIDER_LABEL[item.source.provider] : undefined;
   // 매장 재고는 다이소·올리브영에서 검색해 담은 상품만 확인할 수 있다.
@@ -142,7 +142,7 @@ export default function WishCard({
         accent="purple"
         aria-label={`${item.name} 상태 변경`}
         value={item.status}
-        onChange={(e) => updateItem(item.id, { status: e.target.value as WishItem['status'] })}
+        onChange={(e) => setWishStatus(item, e.target.value as WishItem['status'])}
         className="w-auto self-start text-xs px-2 py-1"
       >
         {STATUSES.map((s) => (

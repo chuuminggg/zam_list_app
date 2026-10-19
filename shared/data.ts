@@ -86,6 +86,8 @@ export interface Transaction {
   /** 날짜 (로컬 기준 YYYY-MM-DD) */
   date: string;
   memo?: string;
+  /** 위시리스트에서 "구매함"으로 바꿔 기록한 지출이면 그 위시 항목 id */
+  wishId?: string;
   createdAt: string;
 }
 

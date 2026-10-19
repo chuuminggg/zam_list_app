@@ -7,7 +7,8 @@ interface WishStore {
   filter: WishFilter;
   shopFilter: WishShopFilter;
   sort: WishSort;
-  addItem: (item: Omit<WishItem, 'id' | 'createdAt'>) => void;
+  /** 새 항목을 추가하고 만든 항목을 돌려준다. */
+  addItem: (item: Omit<WishItem, 'id' | 'createdAt'>) => WishItem;
   updateItem: (id: string, updates: Partial<WishItem>) => void;
   deleteItem: (id: string) => void;
   setFilter: (filter: WishFilter) => void;
@@ -22,13 +23,11 @@ export const useWishStore = create<WishStore>()(
       filter: 'all',
       shopFilter: 'all',
       sort: 'newest',
-      addItem: (item) =>
-        set((state) => ({
-          items: [
-            ...state.items,
-            { ...item, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
-          ],
-        })),
+      addItem: (item) => {
+        const next = { ...item, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+        set((state) => ({ items: [...state.items, next] }));
+        return next;
+      },
       updateItem: (id, updates) =>
         set((state) => ({
           items: state.items.map((i) => (i.id === id ? { ...i, ...updates } : i)),

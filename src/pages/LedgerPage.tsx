@@ -4,6 +4,7 @@ import IconButton from '../components/common/IconButton';
 import CategoryBreakdown from '../components/ledger/CategoryBreakdown';
 import FixedItemModal from '../components/ledger/FixedItemModal';
 import LedgerCalendar from '../components/ledger/LedgerCalendar';
+import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
 import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
@@ -25,6 +26,7 @@ export default function LedgerPage() {
   const [selectedDate, setSelectedDate] = useState<DateKey | null>(null);
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
@@ -50,11 +52,16 @@ export default function LedgerPage() {
           <IconButton label="다음 달" className="px-2 text-xl" onClick={() => goTo(addMonths(month, 1))}>
             ›
           </IconButton>
-          {month !== thisMonth && (
-            <Button size="sm" variant="ghost" className="ml-auto" onClick={() => goTo(thisMonth)}>
-              이번 달
-            </Button>
-          )}
+          <div className="ml-auto flex items-center gap-1">
+            {month !== thisMonth && (
+              <Button size="sm" variant="ghost" onClick={() => goTo(thisMonth)}>
+                이번 달
+              </Button>
+            )}
+            <IconButton label="가계부 설정" className="px-2 text-lg" onClick={() => setSettingsOpen(true)}>
+              ⚙
+            </IconButton>
+          </div>
         </div>
 
         <div className={CARD}>
@@ -116,6 +123,7 @@ export default function LedgerPage() {
       />
 
       {fixedOpen && <FixedItemModal month={month} onClose={() => setFixedOpen(false)} />}
+      {settingsOpen && <LedgerSettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

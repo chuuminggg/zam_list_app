@@ -5,6 +5,7 @@ import Modal from '../common/Modal';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { LedgerType, Transaction } from '../../types';
 import { parseAmount } from '../../utils/ledger';
+import type { TransactionDraft } from '../../utils/wishPurchase';
 import AmountInput from './AmountInput';
 import LedgerTypeFields from './LedgerTypeFields';
 
@@ -15,19 +16,24 @@ interface TransactionFormProps {
   transaction?: Transaction;
   /** 추가 모드의 기본 날짜 */
   defaultDate: string;
+  /** 추가 모드에서 미리 채울 값 (위시 구매 등). date가 있으면 defaultDate보다 우선한다. */
+  draft?: TransactionDraft;
 }
 
-export default function TransactionForm({ open, onClose, transaction, defaultDate }: TransactionFormProps) {
+export default function TransactionForm({ open, onClose, transaction, defaultDate, draft }: TransactionFormProps) {
   const addTransaction = useLedgerStore((s) => s.addTransaction);
   const updateTransaction = useLedgerStore((s) => s.updateTransaction);
   const deleteTransaction = useLedgerStore((s) => s.deleteTransaction);
+  const initial = transaction ?? draft;
   const [form, setForm] = useState({
-    type: (transaction?.type ?? 'expense') as LedgerType,
-    category: transaction?.category ?? 'food',
-    amount: transaction ? String(transaction.amount) : '',
-    date: transaction?.date ?? defaultDate,
-    memo: transaction?.memo ?? '',
+    type: (initial?.type ?? 'expense') as LedgerType,
+    category: initial?.category ?? 'food',
+    amount: initial?.amount != null ? String(initial.amount) : '',
+    date: initial?.date ?? defaultDate,
+    memo: initial?.memo ?? '',
   });
+  // 위시 구매로 띄운 시트는 기록하지 않고 닫을 수 있다.
+  const fromWish = !transaction && draft?.wishId !== undefined;
   const amount = parseAmount(form.amount);
   const valid = amount !== null && /^\d{4}-\d{2}-\d{2}$/.test(form.date);
 
@@ -41,12 +47,17 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
       memo: form.memo.trim() || undefined,
     };
     if (transaction) updateTransaction(transaction.id, payload);
-    else addTransaction(payload);
+    else addTransaction({ ...payload, wishId: draft?.wishId });
     onClose();
   };
 
   return (
-    <Modal open={open} title={transaction ? '내역 수정' : '내역 추가'} onClose={onClose} placement="bottom">
+    <Modal
+      open={open}
+      title={transaction ? '내역 수정' : fromWish ? '구매 지출 기록' : '내역 추가'}
+      onClose={onClose}
+      placement="bottom"
+    >
       <LedgerTypeFields
         type={form.type}
         category={form.category}
@@ -89,7 +100,7 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
           </Button>
         )}
         <Button variant="ghost" onClick={onClose} className="flex-1">
-          취소
+          {fromWish ? '건너뛰기' : '취소'}
         </Button>
         <Button onClick={handleSubmit} disabled={!valid} className="flex-1">
           {transaction ? '저장' : '추가'}
