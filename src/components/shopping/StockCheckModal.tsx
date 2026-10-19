@@ -71,7 +71,22 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
 
   return (
     <Modal open title="매장 재고 확인" onClose={onClose}>
-      <ProviderToggle value={provider} options={options} onChange={changeProvider} />
+      {sourceProvider ? (
+        // 담아 온 쇼핑몰이 정해져 있으면 고를 것이 없으니 그 쇼핑몰 이름만 탭으로 보여 준다.
+        <div className="space-y-1.5">
+          <p
+            aria-label="조회 쇼핑몰"
+            className="inline-block px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white"
+          >
+            {options[0].label}
+          </p>
+          {options[0].disabled && (
+            <p className="text-xs text-gray-500 dark:text-gray-400">{options[0].reason ?? '사용할 수 없음'}</p>
+          )}
+        </div>
+      ) : (
+        <ProviderToggle value={provider} options={options} onChange={changeProvider} />
+      )}
 
       <section className="space-y-2">
         <h3 className={SECTION_TITLE}>1. 상품</h3>

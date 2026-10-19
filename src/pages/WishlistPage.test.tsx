@@ -282,8 +282,9 @@ describe('WishlistPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '매장 재고 확인' }));
 
     const dialog = screen.getByRole('dialog', { name: '매장 재고 확인' });
-    const tabs = within(dialog).getByRole('group', { name: '쇼핑몰 선택' });
-    expect(within(tabs).getAllByRole('button').map((b) => b.textContent)).toEqual([label]);
+    // 쇼핑몰을 고르는 탭 대신 담아 온 쇼핑몰 이름만 보인다
+    expect(within(dialog).queryByRole('group', { name: '쇼핑몰 선택' })).toBeNull();
+    expect(within(dialog).getByLabelText('조회 쇼핑몰').textContent).toBe(label);
     // 검색으로 담은 항목은 상품 연결 단계를 건너뛰고 매장 입력이 바로 보인다
     expect(within(dialog).getByLabelText('매장 검색어')).toBeTruthy();
   });
