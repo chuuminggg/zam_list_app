@@ -27,17 +27,21 @@ export default function StockCheckModal({ item, onClose }: StockCheckModalProps)
   const savedStoreQuery = useStockPrefsStore((s) => s.storeQuery);
   const setStoreQuery = useStockPrefsStore((s) => s.setStoreQuery);
 
+  // 다이소·올리브영에서 담은 항목은 그 쇼핑몰 탭에서만 확인한다.
   // 컬리처럼 재고 확인을 지원하지 않는 곳에서 담은 항목은 기본값(다이소)에서 시작한다.
   const sourceProvider =
     item.source && supportsStockCheck(item.source.provider) ? item.source.provider : undefined;
   const [provider, setProvider] = useState<StockProviderId>(
-    item.stockLink?.provider ?? sourceProvider ?? 'daiso'
+    sourceProvider ?? item.stockLink?.provider ?? 'daiso'
   );
   const [relinking, setRelinking] = useState(false);
   const [storeInput, setStoreInput] = useState(savedStoreQuery[provider] ?? '');
   const stock = useApiRequest<StockResult>();
   const providers = useProviders();
-  const options = withAvailability(STOCK_PROVIDERS, providers);
+  const options = withAvailability(
+    sourceProvider ? STOCK_PROVIDERS.filter((o) => o.value === sourceProvider) : STOCK_PROVIDERS,
+    providers
+  );
 
   const link = getStockLink(item, provider);
   const showPicker = !link || relinking;

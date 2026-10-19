@@ -262,16 +262,19 @@ describe('WishlistPage', () => {
     expect(within(dialog).getByRole('button', { name: '마켓컬리' }).hasAttribute('disabled')).toBe(false);
   });
 
-  it('재고 확인 모달에는 매장 재고를 지원하는 쇼핑몰만 나온다', async () => {
+  it.each([
+    { provider: 'daiso' as const, name: '수납함', label: '다이소' },
+    { provider: 'oliveyoung' as const, name: '선크림', label: '올리브영' },
+  ])('$label에서 담은 항목의 재고 확인 모달에는 $label 탭만 나온다', async ({ provider, name, label }) => {
     useWishStore.setState({
       items: [
         {
           id: 'w1',
-          name: '수납함',
+          name,
           status: 'want',
-          category: '다이소',
+          category: label,
           createdAt: new Date().toISOString(),
-          source: { provider: 'daiso', externalId: '1047618' },
+          source: { provider, externalId: '1047618' },
         },
       ],
     });
@@ -280,7 +283,7 @@ describe('WishlistPage', () => {
 
     const dialog = screen.getByRole('dialog', { name: '매장 재고 확인' });
     const tabs = within(dialog).getByRole('group', { name: '쇼핑몰 선택' });
-    expect(within(tabs).getAllByRole('button').map((b) => b.textContent)).toEqual(['다이소', '올리브영']);
+    expect(within(tabs).getAllByRole('button').map((b) => b.textContent)).toEqual([label]);
     // 검색으로 담은 항목은 상품 연결 단계를 건너뛰고 매장 입력이 바로 보인다
     expect(within(dialog).getByLabelText('매장 검색어')).toBeTruthy();
   });
