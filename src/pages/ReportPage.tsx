@@ -6,8 +6,15 @@ import { useEffect, useState } from 'react';
  */
 export const REPORT_URL = 'https://m.oliveyoung.co.kr/m/mtn?menu=todaySpecial';
 
+/**
+ * 올리브영은 PC 브라우저 UA를 PC 페이지로 넘기고, PC 페이지는 X-Frame-Options: SAMEORIGIN이라 탭 안에 띄울 수 없다.
+ * 같은 기준(UA)으로 모바일일 때만 띄우고, PC에서는 새 창 링크만 보여준다.
+ */
+const canEmbed = () => /Mobi|Android|iPhone/i.test(navigator.userAgent);
+
 export default function ReportPage() {
   const [hidden, setHidden] = useState(false);
+  const embed = canEmbed();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -34,6 +41,18 @@ export default function ReportPage() {
       </div>
       {hidden ? (
         <p className="text-sm text-gray-500 dark:text-gray-400">표시할 항목이 없습니다.</p>
+      ) : !embed ? (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          오늘 항목은 별도 창에서 확인할 수 있습니다.{' '}
+          <a
+            href={REPORT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-gray-700 dark:hover:text-gray-200"
+          >
+            열기 ↗
+          </a>
+        </p>
       ) : (
         // 모바일 페이지라 폭을 좁게 두고, 헤더(약 57px)·제목줄·위아래 여백을 뺀 높이를 채운다.
         <iframe
