@@ -34,7 +34,7 @@ export default function LedgerFilterBar({ filter, onChange, monthLabel, result }
         onChange={(e) => set({ query: e.target.value })}
         autoFocus
       />
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-[auto_1fr_1fr] gap-2 [&>select]:min-w-0">
         <Select
           aria-label="종류"
           value={filter.type}
@@ -55,7 +55,7 @@ export default function LedgerFilterBar({ filter, onChange, monthLabel, result }
           title={type === null ? '종류를 먼저 고르세요' : undefined}
           onChange={(e) => set({ category: e.target.value || null })}
         >
-          <option value="">모든 카테고리</option>
+          <option value="">카테고리</option>
           {type &&
             categories.all(type).map((c) => (
               <option key={c.id} value={c.id}>
@@ -69,7 +69,7 @@ export default function LedgerFilterBar({ filter, onChange, monthLabel, result }
           disabled={type === 'income'}
           onChange={(e) => set({ paymentMethod: (e.target.value || null) as LedgerFilter['paymentMethod'] })}
         >
-          <option value="">모든 결제수단</option>
+          <option value="">결제수단</option>
           {PAYMENT_METHODS.map((m) => (
             <option key={m} value={m}>
               {PAYMENT_LABEL[m]}

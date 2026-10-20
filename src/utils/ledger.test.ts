@@ -87,6 +87,7 @@ describe('ledger utils', () => {
     expect(formatShortWon(8000)).toBe('8,000');
     expect(formatShortWon(12000)).toBe('1.2만');
     expect(formatShortWon(3000000)).toBe('300만');
+    expect(formatShortWon(12_345_678)).toBe('1235만');
     expect(formatShortWon(150_000_000)).toBe('1.5억');
   });
 

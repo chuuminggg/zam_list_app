@@ -61,10 +61,11 @@ export function formatWon(amount: number): string {
   return `${amount.toLocaleString('ko-KR')}원`;
 }
 
-/** 달력 칸처럼 좁은 곳에 쓰는 짧은 금액. 예: 8,000 / 1.2만 / 3억 */
+/** 달력 칸처럼 좁은 곳에 쓰는 짧은 금액. 예: 8,000 / 1.2만 / 1235만 / 3억. 천만 단위부터는 소수점을 뺀다. */
 export function formatShortWon(amount: number): string {
   const trim = (n: number) => String(Math.round(n * 10) / 10);
   if (amount >= 100_000_000) return `${trim(amount / 100_000_000)}억`;
+  if (amount >= 10_000_000) return `${Math.round(amount / 10_000)}만`;
   if (amount >= 10_000) return `${trim(amount / 10_000)}만`;
   return amount.toLocaleString('ko-KR');
 }
