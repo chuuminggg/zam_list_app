@@ -195,7 +195,7 @@ function FixedItemForm({ item, month, onDone }: FixedItemFormProps) {
       </div>
       {item && (
         <p className="text-xs text-gray-400 dark:text-gray-500">
-          금액을 바꾸면 지난 달 내역도 함께 바뀌어요. 지난 기록을 남기려면 이 항목에 종료 월을 넣고 새 항목을 추가하세요.
+          여기서 금액을 바꾸면 지난 달 내역도 함께 바뀌어요. 한 달만 바꾸거나 이번 달부터 바꾸려면 내역에서 이 고정 항목을 눌러 주세요.
         </p>
       )}
       <div className="flex gap-2 pt-2">

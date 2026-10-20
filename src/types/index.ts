@@ -1,6 +1,7 @@
 export type {
   Category,
   FixedItem,
+  FixedOverride,
   JournalType,
   LedgerType,
   PaymentMethod,

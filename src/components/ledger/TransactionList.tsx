@@ -1,7 +1,7 @@
 import Badge from '../common/Badge';
 import EmptyState from '../common/EmptyState';
 import { PAYMENT_LABEL, findCategory } from '../../constants/ledger';
-import type { Transaction } from '../../types';
+import type { FixedItem, Transaction } from '../../types';
 import { formatDateHeading } from '../../utils/date';
 import { formatWon, type LedgerEntry } from '../../utils/ledger';
 import CategoryIcon from './CategoryIcon';
@@ -9,14 +9,14 @@ import CategoryIcon from './CategoryIcon';
 interface TransactionListProps {
   entries: LedgerEntry[];
   onEdit: (transaction: Transaction) => void;
-  onEditFixed: () => void;
+  onEditFixed: (item: FixedItem) => void;
   emptyTitle: string;
 }
 
 const signed = (entry: Pick<LedgerEntry, 'type' | 'amount'>) =>
   `${entry.type === 'income' ? '+' : '-'}${formatWon(entry.amount)}`;
 
-/** 날짜별로 묶은 내역. 고정 항목은 눌렀을 때 고정 항목 관리를 연다. */
+/** 날짜별로 묶은 내역. 고정 항목은 눌렀을 때 그 달 예외 시트를 연다. 건너뛴 고정 항목은 흐리게 보여준다. */
 export default function TransactionList({ entries, onEdit, onEditFixed, emptyTitle }: TransactionListProps) {
   if (entries.length === 0) {
     return <EmptyState icon="🧾" title={emptyTitle} description="+ 버튼으로 수입·지출을 기록해 보세요." />;
@@ -28,7 +28,10 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
   return (
     <section className="space-y-5" aria-label="내역">
       {[...byDate].map(([date, dayEntries]) => {
-        const net = dayEntries.reduce((sum, e) => sum + (e.type === 'income' ? e.amount : -e.amount), 0);
+        const net = dayEntries.reduce(
+          (sum, e) => (e.skipped ? sum : sum + (e.type === 'income' ? e.amount : -e.amount)),
+          0
+        );
         return (
           <div key={date}>
             <div className="flex items-baseline justify-between px-1 mb-1">
@@ -49,8 +52,10 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
                   <li key={entry.key}>
                     <button
                       type="button"
-                      onClick={() => (entry.transaction ? onEdit(entry.transaction) : onEditFixed())}
-                      className="w-full flex items-center gap-3 px-1 py-2 rounded-xl text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      onClick={() =>
+                        entry.transaction ? onEdit(entry.transaction) : entry.fixedItem && onEditFixed(entry.fixedItem)
+                      }
+                      className={`w-full flex items-center gap-3 px-1 py-2 rounded-xl text-left hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${entry.skipped ? 'opacity-50' : ''}`}
                     >
                       <CategoryIcon category={category} />
                       <span className="min-w-0 flex-1">
@@ -58,12 +63,12 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
                           <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                             {entry.label || category.name}
                           </span>
-                          {entry.fixed && <Badge>고정</Badge>}
+                          {entry.fixed && <Badge>{entry.skipped ? '건너뜀' : entry.overridden ? '이번 달 변경' : '고정'}</Badge>}
                         </span>
                         {detail && <span className="block text-xs text-gray-400 dark:text-gray-500">{detail}</span>}
                       </span>
                       <span
-                        className={`text-sm font-semibold whitespace-nowrap tabular-nums ${entry.type === 'income' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}
+                        className={`text-sm font-semibold whitespace-nowrap tabular-nums ${entry.type === 'income' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'} ${entry.skipped ? 'line-through' : ''}`}
                       >
                         {signed(entry)}
                       </span>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_NOTE_LENGTH } from '../../shared/data.js';
-import { parseCategory, parseTodo, parseTransaction } from './validate.js';
+import { parseCategory, parseFixedItem, parseTodo, parseTransaction } from './validate.js';
 
 const base = {
   id: 't1',
@@ -10,6 +10,37 @@ const base = {
   date: '2026-10-15',
   createdAt: '2026-10-15T00:00:00Z',
 };
+
+describe('parseFixedItem', () => {
+  const fixedBase = {
+    id: 'f1',
+    type: 'expense',
+    name: '월세',
+    amount: 500000,
+    category: 'housing',
+    day: 1,
+    startMonth: '2026-01',
+    createdAt: '2026-01-01T00:00:00Z',
+  };
+
+  it('달별 예외(금액·건너뛰기)를 저장한다', () => {
+    const overrides = { '2026-09': { amount: 450000 }, '2026-10': { skip: true } };
+    expect(parseFixedItem({ ...fixedBase, overrides }).overrides).toEqual(overrides);
+    expect(parseFixedItem(fixedBase)).not.toHaveProperty('overrides');
+  });
+
+  it('형식이 틀린 달별 예외는 거부한다', () => {
+    for (const overrides of [
+      { '2026-9': { amount: 1 } },
+      { '2026-09': {} },
+      { '2026-09': { amount: -1 } },
+      { '2026-09': { skip: 'yes' } },
+      [],
+    ]) {
+      expect(() => parseFixedItem({ ...fixedBase, overrides })).toThrow();
+    }
+  });
+});
 
 describe('parseTransaction', () => {
   it('위시 연결 id를 저장하고, 없으면 필드를 뺀다', () => {

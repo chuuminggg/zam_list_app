@@ -122,6 +122,59 @@ describe('LedgerPage', () => {
     expect(useLedgerStore.getState().transactions[1].paymentMethod).toBeUndefined();
   });
 
+  it('고정 항목을 눌러 이번 달만 금액을 바꾸거나 건너뛰고, 이번 달부터 금액을 바꾼다', async () => {
+    useLedgerStore.setState({
+      fixedItems: [
+        {
+          id: 'rent',
+          type: 'expense',
+          name: '월세',
+          amount: 500000,
+          category: 'housing',
+          day: 1,
+          startMonth: '2026-01',
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    render(<LedgerPage />);
+    const openRent = () => userEvent.click(within(screen.getByRole('region', { name: '내역' })).getByText('월세'));
+
+    // 이번 달만
+    await openRent();
+    let sheet = screen.getByRole('dialog', { name: '월세 · 9월' });
+    await userEvent.clear(within(sheet).getByLabelText('금액'));
+    await userEvent.type(within(sheet).getByLabelText('금액'), '450000');
+    await userEvent.click(within(sheet).getByRole('button', { name: '9월만 적용' }));
+    expect(total('지출 합계')).toBe('450,000원');
+    expect(screen.getByText('이번 달 변경')).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: '다음 달' }));
+    expect(total('지출 합계')).toBe('500,000원');
+
+    // 10월 건너뛰기 → 다시 포함
+    await openRent();
+    await userEvent.click(within(screen.getByRole('dialog', { name: '월세 · 10월' })).getByRole('button', { name: '10월 건너뛰기' }));
+    expect(total('지출 합계')).toBe('0원');
+    expect(screen.getByText('건너뜀')).toBeTruthy();
+    await openRent();
+    await userEvent.click(within(screen.getByRole('dialog', { name: '월세 · 10월' })).getByRole('button', { name: '10월 다시 포함' }));
+    expect(total('지출 합계')).toBe('500,000원');
+
+    // 10월부터 계속
+    await openRent();
+    sheet = screen.getByRole('dialog', { name: '월세 · 10월' });
+    await userEvent.clear(within(sheet).getByLabelText('금액'));
+    await userEvent.type(within(sheet).getByLabelText('금액'), '550000');
+    await userEvent.click(within(sheet).getByRole('button', { name: '10월부터 계속' }));
+    expect(total('지출 합계')).toBe('550,000원');
+    expect(useLedgerStore.getState().fixedItems).toMatchObject([
+      { id: 'rent', amount: 500000, endMonth: '2026-09', overrides: { '2026-09': { amount: 450000 } } },
+      { name: '월세', amount: 550000, startMonth: '2026-10' },
+    ]);
+    await userEvent.click(screen.getByRole('button', { name: '이전 달' }));
+    expect(total('지출 합계')).toBe('450,000원');
+  });
+
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {
     render(<LedgerPage />);
     await userEvent.click(screen.getByRole('button', { name: '고정 항목' }));

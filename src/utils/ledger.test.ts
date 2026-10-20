@@ -7,7 +7,9 @@ import {
   fixedEntriesForMonth,
   formatShortWon,
   formatWon,
+  splitFixedItem,
   summarize,
+  withFixedOverride,
 } from './ledger';
 
 const fixed = (overrides: Partial<FixedItem>): FixedItem => ({
@@ -95,6 +97,53 @@ describe('ledger utils', () => {
       '2026-09'
     );
     expect(dailyTotals(entries).get('2026-09-10')).toEqual({ income: 9000, expense: 5000 });
+  });
+
+  it('달별 예외로 그 달만 금액을 바꾸거나 건너뛰고, 건너뛴 항목은 합계에서 뺀다', () => {
+    const item = fixed({ overrides: { '2026-09': { amount: 450000 }, '2026-10': { skip: true } } });
+    const [sep] = fixedEntriesForMonth([item], '2026-09');
+    expect(sep).toMatchObject({ amount: 450000, overridden: true, skipped: false });
+
+    const oct = entriesForMonth([tx({ id: 'a', date: '2026-10-05', amount: 3000 })], [item], '2026-10');
+    expect(oct.find((e) => e.fixed)).toMatchObject({ amount: 500000, skipped: true });
+    expect(summarize(oct)).toMatchObject({ expense: 3000, fixedExpense: 0 });
+    expect(dailyTotals(oct).has('2026-10-01')).toBe(false);
+
+    expect(fixedEntriesForMonth([item], '2026-11')[0]).toMatchObject({ amount: 500000, overridden: false, skipped: false });
+  });
+
+  it('달별 예외를 넣고 빼며, 남은 예외가 없으면 overrides를 비운다', () => {
+    const item = fixed({ overrides: { '2026-09': { amount: 1 } } });
+    expect(withFixedOverride(item, '2026-10', { skip: true })).toEqual({ '2026-09': { amount: 1 }, '2026-10': { skip: true } });
+    expect(withFixedOverride(item, '2026-09', null)).toBeUndefined();
+  });
+
+  it('그 달부터 금액을 바꾸면 기존 항목은 지난달에 끝내고 새 항목을 만든다', () => {
+    const item = fixed({
+      startMonth: '2026-01',
+      endMonth: '2026-12',
+      paymentMethod: 'transfer',
+      overrides: { '2026-03': { skip: true }, '2026-05': { amount: 1 }, '2026-07': { amount: 2 } },
+    });
+    expect(splitFixedItem(item, '2026-05', 550000)).toEqual({
+      update: { endMonth: '2026-04', overrides: { '2026-03': { skip: true } } },
+      added: {
+        type: 'expense',
+        name: '월세',
+        amount: 550000,
+        category: 'housing',
+        paymentMethod: 'transfer',
+        day: 1,
+        startMonth: '2026-05',
+        endMonth: '2026-12',
+        overrides: { '2026-07': { amount: 2 } },
+      },
+    });
+  });
+
+  it('시작 월부터 금액을 바꾸면 나누지 않고 기존 항목만 고친다', () => {
+    const item = fixed({ startMonth: '2026-05', overrides: { '2026-05': { amount: 1 } } });
+    expect(splitFixedItem(item, '2026-05', 550000)).toEqual({ update: { amount: 550000, overrides: undefined } });
   });
 
   it('지출을 결제수단별로 합치고, 고르지 않은 지출은 미지정으로 둔다', () => {

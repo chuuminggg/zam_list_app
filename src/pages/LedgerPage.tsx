@@ -3,6 +3,7 @@ import Button from '../components/common/Button';
 import IconButton from '../components/common/IconButton';
 import CategoryBreakdown from '../components/ledger/CategoryBreakdown';
 import FixedItemModal from '../components/ledger/FixedItemModal';
+import FixedMonthSheet from '../components/ledger/FixedMonthSheet';
 import LedgerCalendar from '../components/ledger/LedgerCalendar';
 import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
@@ -10,7 +11,7 @@ import PaymentBreakdown from '../components/ledger/PaymentBreakdown';
 import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
 import { useLedgerStore } from '../stores/ledgerStore';
-import type { Transaction } from '../types';
+import type { FixedItem, Transaction } from '../types';
 import { formatDateHeading, todayKey, type DateKey } from '../utils/date';
 import { addMonths, entriesForMonth, formatMonth, monthKey, summarize, type MonthKey } from '../utils/ledger';
 
@@ -27,6 +28,8 @@ export default function LedgerPage() {
   const [selectedDate, setSelectedDate] = useState<DateKey | null>(null);
   const [formTarget, setFormTarget] = useState<FormTarget>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
+  /** 그 달 예외를 고칠 고정 항목 */
+  const [fixedTarget, setFixedTarget] = useState<FixedItem | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
@@ -115,7 +118,7 @@ export default function LedgerPage() {
           <TransactionList
             entries={visibleEntries}
             onEdit={setFormTarget}
-            onEditFixed={() => setFixedOpen(true)}
+            onEditFixed={setFixedTarget}
             emptyTitle={selectedDate ? '이날 내역이 없어요' : '이번 달 내역이 없어요'}
           />
         </div>
@@ -130,6 +133,18 @@ export default function LedgerPage() {
         onClose={() => setFormTarget(null)}
       />
 
+      {fixedTarget && (
+        <FixedMonthSheet
+          key={fixedTarget.id}
+          item={fixedTarget}
+          month={month}
+          onClose={() => setFixedTarget(null)}
+          onManage={() => {
+            setFixedTarget(null);
+            setFixedOpen(true);
+          }}
+        />
+      )}
       {fixedOpen && <FixedItemModal month={month} onClose={() => setFixedOpen(false)} />}
       {settingsOpen && <LedgerSettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>

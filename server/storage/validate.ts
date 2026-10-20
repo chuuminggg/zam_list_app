@@ -194,6 +194,26 @@ export function parseTransaction(value: unknown): Transaction {
   });
 }
 
+const MAX_FIXED_OVERRIDES = 240;
+
+/** 고정 항목의 달별 예외. 키는 YYYY-MM, 값은 금액이나 건너뛰기 중 하나 이상 */
+function parseFixedOverrides(value: unknown): FixedItem['overrides'] {
+  if (value == null) return undefined;
+  const obj = asObject(value, 'overrides');
+  const entries = Object.entries(obj);
+  if (entries.length > MAX_FIXED_OVERRIDES) invalid('overrides');
+  const result: NonNullable<FixedItem['overrides']> = {};
+  for (const [month, raw] of entries) {
+    if (!MONTH_PATTERN.test(month)) invalid('overrides');
+    const override = asObject(raw, 'overrides');
+    const skip = override.skip == null ? undefined : override.skip === true ? true : invalid('overrides');
+    const overrideAmount = override.amount == null ? undefined : amount(override);
+    if (skip === undefined && overrideAmount === undefined) invalid('overrides');
+    result[month] = compact({ amount: overrideAmount, skip });
+  }
+  return entries.length > 0 ? result : undefined;
+}
+
 export function parseFixedItem(value: unknown): FixedItem {
   const obj = asObject(value, 'fixedItem');
   const day = obj.day;
@@ -211,6 +231,7 @@ export function parseFixedItem(value: unknown): FixedItem {
     day,
     startMonth,
     endMonth,
+    overrides: parseFixedOverrides(obj.overrides),
     createdAt: str(obj, 'createdAt', 40, 1),
   });
 }

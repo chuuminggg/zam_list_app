@@ -1,5 +1,5 @@
 import { PAYMENT_METHODS } from '../../shared/data';
-import type { FixedItem, LedgerType, PaymentMethod, Transaction } from '../types';
+import type { FixedItem, FixedOverride, LedgerType, PaymentMethod, Transaction } from '../types';
 import { toDateKey } from './date';
 
 /** 월 키: `YYYY-MM` */
@@ -19,6 +19,12 @@ export interface LedgerEntry {
   fixed: boolean;
   /** 일반 내역이면 원본 */
   transaction?: Transaction;
+  /** 고정 항목이면 원본 */
+  fixedItem?: FixedItem;
+  /** 이 달만 금액을 바꾼 고정 항목 */
+  overridden?: boolean;
+  /** 이 달은 건너뛴 고정 항목. 목록에는 보이지만 합계에서는 뺀다. */
+  skipped?: boolean;
 }
 
 export interface MonthSummary {
@@ -67,6 +73,7 @@ export function formatShortWon(amount: number): string {
 export function dailyTotals(entries: LedgerEntry[]): Map<string, { income: number; expense: number }> {
   const map = new Map<string, { income: number; expense: number }>();
   for (const entry of entries) {
+    if (entry.skipped) continue;
     const day = map.get(entry.date) ?? { income: 0, expense: 0 };
     day[entry.type] += entry.amount;
     map.set(entry.date, day);
@@ -74,22 +81,78 @@ export function dailyTotals(entries: LedgerEntry[]): Map<string, { income: numbe
   return map;
 }
 
-/** 그 달에 적용되는 고정 항목을 내역으로 만든다. 없는 날(예: 2월 31일)은 말일로 맞춘다. */
+/** 그 달에 적용되는 고정 항목을 내역으로 만든다. 없는 날(예: 2월 31일)은 말일로 맞추고, 달별 예외(금액·건너뛰기)를 반영한다. */
 export function fixedEntriesForMonth(items: FixedItem[], month: MonthKey): LedgerEntry[] {
   const [y, m] = month.split('-').map(Number);
   const lastDay = new Date(y, m, 0).getDate();
   return items
     .filter((f) => f.startMonth <= month && (!f.endMonth || month <= f.endMonth))
-    .map((f) => ({
-      key: `fixed-${f.id}`,
-      type: f.type,
-      amount: f.amount,
-      category: f.category,
-      date: toDateKey(new Date(y, m - 1, Math.min(f.day, lastDay))),
-      label: f.name,
-      paymentMethod: f.paymentMethod,
-      fixed: true,
-    }));
+    .map((f) => {
+      const override = f.overrides?.[month];
+      return {
+        key: `fixed-${f.id}`,
+        type: f.type,
+        amount: override?.amount ?? f.amount,
+        category: f.category,
+        date: toDateKey(new Date(y, m - 1, Math.min(f.day, lastDay))),
+        label: f.name,
+        paymentMethod: f.paymentMethod,
+        fixed: true,
+        fixedItem: f,
+        overridden: override?.amount !== undefined,
+        skipped: override?.skip === true,
+      };
+    });
+}
+
+/** 한 달의 예외를 바꾼 overrides. override가 null이면 그 달 예외를 지운다. 남은 예외가 없으면 undefined */
+export function withFixedOverride(
+  item: FixedItem,
+  month: MonthKey,
+  override: FixedOverride | null
+): FixedItem['overrides'] {
+  const next = { ...item.overrides };
+  if (override) next[month] = override;
+  else delete next[month];
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
+/**
+ * 고정 항목 금액을 그 달부터 바꾼다. 지난 달 내역을 지키려고 기존 항목은 지난달에서 끝내고,
+ * 그 달부터 새 금액으로 이어지는 항목을 만든다. 달별 예외도 그 달을 기준으로 나눠 가진다.
+ * 시작 월부터 바꾸면 나눌 필요가 없으므로 기존 항목만 고친다.
+ */
+export function splitFixedItem(
+  item: FixedItem,
+  month: MonthKey,
+  amount: number
+): { update: Partial<FixedItem>; added?: Omit<FixedItem, 'id' | 'createdAt'> } {
+  const before: Record<string, FixedOverride> = {};
+  const after: Record<string, FixedOverride> = {};
+  for (const [key, override] of Object.entries(item.overrides ?? {})) {
+    // 새 금액을 정하는 달의 금액 예외는 의미가 없어지므로 건너뛰기만 남긴다.
+    const kept = key === month ? (override.skip ? { skip: true } : null) : override;
+    if (!kept) continue;
+    (key < month ? before : after)[key] = kept;
+  }
+  const orUndefined = (o: Record<string, FixedOverride>) => (Object.keys(o).length > 0 ? o : undefined);
+
+  if (month <= item.startMonth) return { update: { amount, overrides: orUndefined(after) } };
+
+  return {
+    update: { endMonth: addMonths(month, -1), overrides: orUndefined(before) },
+    added: {
+      type: item.type,
+      name: item.name,
+      amount,
+      category: item.category,
+      paymentMethod: item.paymentMethod,
+      day: item.day,
+      startMonth: month,
+      endMonth: item.endMonth,
+      overrides: orUndefined(after),
+    },
+  };
 }
 
 /** 그 달의 일반 내역과 고정 항목을 합쳐 최근 날짜부터 정렬한다. 같은 날이면 고정 항목을 먼저 둔다. */
@@ -120,6 +183,7 @@ export function summarize(entries: LedgerEntry[]): MonthSummary {
   const byCategory = new Map<string, number>();
   const byPayment = new Map<PaymentMethod | null, number>();
   for (const entry of entries) {
+    if (entry.skipped) continue;
     if (entry.type === 'income') {
       income += entry.amount;
       if (entry.fixed) fixedIncome += entry.amount;

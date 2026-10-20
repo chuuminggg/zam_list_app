@@ -108,6 +108,12 @@ export interface Transaction {
   createdAt: string;
 }
 
+/** 고정 항목의 특정 달 예외. 금액만 바꾸거나 그 달을 건너뛴다. */
+export interface FixedOverride {
+  amount?: number;
+  skip?: boolean;
+}
+
 /** 매월 반복되는 고정 수입·지출. 월별 내역은 저장하지 않고 화면에서 계산한다. */
 export interface FixedItem {
   id: string;
@@ -124,6 +130,8 @@ export interface FixedItem {
   startMonth: string;
   /** 적용 마지막 월 (YYYY-MM). 없으면 계속 적용 */
   endMonth?: string;
+  /** 달(YYYY-MM)별 예외 */
+  overrides?: Record<string, FixedOverride>;
   createdAt: string;
 }
 
