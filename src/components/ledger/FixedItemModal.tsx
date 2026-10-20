@@ -3,7 +3,8 @@ import Badge from '../common/Badge';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
-import { PAYMENT_LABEL, TYPE_LABEL, findCategory } from '../../constants/ledger';
+import { PAYMENT_LABEL, TYPE_LABEL } from '../../constants/ledger';
+import { useLedgerCategories } from '../../hooks/useLedgerCategories';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { FixedItem, LedgerType } from '../../types';
 import { formatMonth, formatWon, parseAmount, type MonthKey } from '../../utils/ledger';
@@ -23,6 +24,7 @@ interface FixedItemModalProps {
 /** 고정 수입·지출 목록과 추가/수정 폼 */
 export default function FixedItemModal({ onClose, month }: FixedItemModalProps) {
   const fixedItems = useLedgerStore((s) => s.fixedItems);
+  const categories = useLedgerCategories();
   // 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 항목.
   const [editing, setEditing] = useState<FixedItem | 'new' | null>(null);
 
@@ -57,13 +59,13 @@ export default function FixedItemModal({ onClose, month }: FixedItemModalProps) 
                   onClick={() => setEditing(item)}
                   className={`w-full flex items-center gap-3 px-1 py-2 rounded-xl text-left hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors ${active ? '' : 'opacity-50'}`}
                 >
-                  <CategoryIcon category={findCategory(item.type, item.category)} />
+                  <CategoryIcon category={categories.find(item.type, item.category)} />
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-medium text-gray-900 dark:text-white truncate">
                       {item.name}
                     </span>
                     <span className="block text-xs text-gray-400 dark:text-gray-500">
-                      매월 {item.day}일 · {findCategory(item.type, item.category).name}
+                      매월 {item.day}일 · {categories.find(item.type, item.category).name}
                       {item.paymentMethod ? ` · ${PAYMENT_LABEL[item.paymentMethod]}` : ''}
                       {item.endMonth ? ` · ${formatMonth(item.endMonth)}까지` : ''}
                     </span>
@@ -103,9 +105,10 @@ function FixedItemForm({ item, month, onDone }: FixedItemFormProps) {
   const addFixedItem = useLedgerStore((s) => s.addFixedItem);
   const updateFixedItem = useLedgerStore((s) => s.updateFixedItem);
   const deleteFixedItem = useLedgerStore((s) => s.deleteFixedItem);
+  const categories = useLedgerCategories();
   const [form, setForm] = useState({
     type: (item?.type ?? 'expense') as LedgerType,
-    category: item?.category ?? 'housing',
+    category: item?.category ?? categories.defaultFor('expense', 'housing'),
     name: item?.name ?? '',
     amount: item ? String(item.amount) : '',
     day: item ? String(item.day) : '1',

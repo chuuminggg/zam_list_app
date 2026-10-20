@@ -135,10 +135,30 @@ export interface FixedItem {
   createdAt: string;
 }
 
+/**
+ * 가계부 카테고리 설정. 사용자가 만든 카테고리이거나, 기본 카테고리(src/constants/ledger.ts)를 고치거나 숨긴 기록이다.
+ * 내역은 사용자 카테고리면 이 id를, 기본 카테고리면 기본 카테고리 id를 가리킨다.
+ */
+export interface LedgerCategorySetting {
+  /** 사용자 카테고리는 임의 id, 기본 카테고리 수정본은 `${type}-${base}` */
+  id: string;
+  type: LedgerType;
+  /** 기본 카테고리를 고친 기록이면 그 기본 카테고리 id */
+  base?: string;
+  name: string;
+  /** #rrggbb */
+  color: string;
+  /** 이모지 */
+  icon: string;
+  /** 기본 카테고리를 고르는 목록에서 숨긴다 (기존 내역에는 그대로 보인다) */
+  hidden?: boolean;
+  createdAt: string;
+}
+
 /** 가계부 금액 상한 (원) */
 export const MAX_LEDGER_AMOUNT = 1_000_000_000_000;
 
-export const COLLECTION_IDS = ['todos', 'wishlist', 'categories', 'transactions', 'fixedItems'] as const;
+export const COLLECTION_IDS = ['todos', 'wishlist', 'categories', 'transactions', 'fixedItems', 'ledgerCategories'] as const;
 export type CollectionId = (typeof COLLECTION_IDS)[number];
 
 export interface CollectionItem {
@@ -147,6 +167,7 @@ export interface CollectionItem {
   categories: Category;
   transactions: Transaction;
   fixedItems: FixedItem;
+  ledgerCategories: LedgerCategorySetting;
 }
 
 /** 로그인한 사용자 */

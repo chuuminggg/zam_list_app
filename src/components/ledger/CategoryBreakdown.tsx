@@ -1,14 +1,15 @@
-import { findCategory } from '../../constants/ledger';
+import { useLedgerCategories } from '../../hooks/useLedgerCategories';
 import { formatWon, type MonthSummary } from '../../utils/ledger';
 import CategoryIcon from './CategoryIcon';
 
 /** 지출 카테고리 비율 막대 한 줄 + 카테고리별 금액 */
 export default function CategoryBreakdown({ summary }: { summary: MonthSummary }) {
   const { expense, expenseByCategory } = summary;
+  const categories = useLedgerCategories();
   if (expense === 0) return null;
 
   const rows = expenseByCategory.map(({ category, amount }) => ({
-    category: findCategory('expense', category),
+    category: categories.find('expense', category),
     amount,
     percent: (amount / expense) * 100,
   }));

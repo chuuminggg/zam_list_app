@@ -15,6 +15,7 @@ import {
   upsertItems,
 } from '../api/client';
 import { useCategoryStore } from '../stores/categoryStore';
+import { useLedgerCategoryStore } from '../stores/ledgerCategoryStore';
 import { useLedgerStore } from '../stores/ledgerStore';
 import { rememberUsername, useSyncStore } from '../stores/syncStore';
 import { useTodoStore } from '../stores/todoStore';
@@ -86,7 +87,24 @@ const fixedItemsBinding: Binding<'fixedItems'> = {
     }),
 };
 
-const BINDINGS = [todosBinding, wishBinding, categoryBinding, transactionsBinding, fixedItemsBinding] as const;
+const ledgerCategoriesBinding: Binding<'ledgerCategories'> = {
+  collection: 'ledgerCategories',
+  get: () => useLedgerCategoryStore.getState().categories,
+  set: (categories) => useLedgerCategoryStore.setState({ categories }),
+  subscribe: (listener) =>
+    useLedgerCategoryStore.subscribe((s, p) => {
+      if (s.categories !== p.categories) listener(s.categories, p.categories);
+    }),
+};
+
+const BINDINGS = [
+  todosBinding,
+  wishBinding,
+  categoryBinding,
+  transactionsBinding,
+  fixedItemsBinding,
+  ledgerCategoriesBinding,
+] as const;
 
 const setSync = useSyncStore.setState;
 const errorMessage = (error: unknown) =>

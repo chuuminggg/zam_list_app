@@ -3,6 +3,7 @@ export type {
   FixedItem,
   FixedOverride,
   JournalType,
+  LedgerCategorySetting,
   LedgerType,
   PaymentMethod,
   ProductSource,

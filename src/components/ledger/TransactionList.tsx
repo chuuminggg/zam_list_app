@@ -1,6 +1,7 @@
 import Badge from '../common/Badge';
 import EmptyState from '../common/EmptyState';
-import { PAYMENT_LABEL, findCategory } from '../../constants/ledger';
+import { PAYMENT_LABEL } from '../../constants/ledger';
+import { useLedgerCategories } from '../../hooks/useLedgerCategories';
 import type { FixedItem, Transaction } from '../../types';
 import { formatDateHeading } from '../../utils/date';
 import { formatWon, type LedgerEntry } from '../../utils/ledger';
@@ -18,6 +19,7 @@ const signed = (entry: Pick<LedgerEntry, 'type' | 'amount'>) =>
 
 /** 날짜별로 묶은 내역. 고정 항목은 눌렀을 때 그 달 예외 시트를 연다. 건너뛴 고정 항목은 흐리게 보여준다. */
 export default function TransactionList({ entries, onEdit, onEditFixed, emptyTitle }: TransactionListProps) {
+  const categories = useLedgerCategories();
   if (entries.length === 0) {
     return <EmptyState icon="🧾" title={emptyTitle} description="+ 버튼으로 수입·지출을 기록해 보세요." />;
   }
@@ -43,7 +45,7 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
             </div>
             <ul>
               {dayEntries.map((entry) => {
-                const category = findCategory(entry.type, entry.category);
+                const category = categories.find(entry.type, entry.category);
                 // 메모가 있으면 제목 아래에 카테고리를, 결제수단이 있으면 그 옆에 함께 적는다.
                 const detail = [entry.label && category.name, entry.paymentMethod && PAYMENT_LABEL[entry.paymentMethod]]
                   .filter(Boolean)

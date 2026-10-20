@@ -5,6 +5,7 @@ import CategoryBreakdown from '../components/ledger/CategoryBreakdown';
 import FixedItemModal from '../components/ledger/FixedItemModal';
 import FixedMonthSheet from '../components/ledger/FixedMonthSheet';
 import LedgerCalendar from '../components/ledger/LedgerCalendar';
+import LedgerCategoryModal from '../components/ledger/LedgerCategoryModal';
 import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
 import PaymentBreakdown from '../components/ledger/PaymentBreakdown';
@@ -31,6 +32,7 @@ export default function LedgerPage() {
   /** 그 달 예외를 고칠 고정 항목 */
   const [fixedTarget, setFixedTarget] = useState<FixedItem | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
@@ -124,14 +126,16 @@ export default function LedgerPage() {
         </div>
       </div>
 
-      {/* key로 대상이 바뀔 때마다 폼 상태를 새로 초기화한다. */}
-      <TransactionForm
-        key={editing?.id ?? `new-${defaultDate}`}
-        open={formTarget !== null}
-        transaction={editing}
-        defaultDate={defaultDate}
-        onClose={() => setFormTarget(null)}
-      />
+      {/* 열 때마다 새로 만들어 기본값(날짜·결제수단·카테고리)을 그때 기준으로 채운다. */}
+      {formTarget !== null && (
+        <TransactionForm
+          key={editing?.id ?? 'new'}
+          open
+          transaction={editing}
+          defaultDate={defaultDate}
+          onClose={() => setFormTarget(null)}
+        />
+      )}
 
       {fixedTarget && (
         <FixedMonthSheet
@@ -146,7 +150,16 @@ export default function LedgerPage() {
         />
       )}
       {fixedOpen && <FixedItemModal month={month} onClose={() => setFixedOpen(false)} />}
-      {settingsOpen && <LedgerSettingsModal onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <LedgerSettingsModal
+          onClose={() => setSettingsOpen(false)}
+          onOpenCategories={() => {
+            setSettingsOpen(false);
+            setCategoriesOpen(true);
+          }}
+        />
+      )}
+      {categoriesOpen && <LedgerCategoryModal onClose={() => setCategoriesOpen(false)} />}
     </div>
   );
 }

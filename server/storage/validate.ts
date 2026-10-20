@@ -10,6 +10,7 @@ import {
   type CollectionId,
   type CollectionItem,
   type FixedItem,
+  type LedgerCategorySetting,
   type PricePoint,
   type Todo,
   type Transaction,
@@ -185,7 +186,7 @@ export function parseTransaction(value: unknown): Transaction {
     id: id(obj),
     type: oneOf(obj, 'type', LEDGER_TYPES),
     amount: amount(obj),
-    category: str(obj, 'category', 30, 1),
+    category: str(obj, 'category', 64, 1),
     date: pattern(obj, 'date', DATE_PATTERN),
     memo: optStr(obj, 'memo', 500),
     paymentMethod: optPaymentMethod(obj),
@@ -226,12 +227,28 @@ export function parseFixedItem(value: unknown): FixedItem {
     type: oneOf(obj, 'type', LEDGER_TYPES),
     name: str(obj, 'name', 100, 1),
     amount: amount(obj),
-    category: str(obj, 'category', 30, 1),
+    category: str(obj, 'category', 64, 1),
     paymentMethod: optPaymentMethod(obj),
     day,
     startMonth,
     endMonth,
     overrides: parseFixedOverrides(obj.overrides),
+    createdAt: str(obj, 'createdAt', 40, 1),
+  });
+}
+
+export function parseLedgerCategory(value: unknown): LedgerCategorySetting {
+  const obj = asObject(value, 'ledgerCategory');
+  const color = str(obj, 'color', 7);
+  if (!COLOR_PATTERN.test(color)) invalid('color');
+  return compact({
+    id: id(obj),
+    type: oneOf(obj, 'type', LEDGER_TYPES),
+    base: optPattern(obj, 'base', ID_PATTERN),
+    name: str(obj, 'name', 20, 1),
+    color,
+    icon: str(obj, 'icon', 16, 1),
+    hidden: obj.hidden == null ? undefined : obj.hidden === true ? true : invalid('hidden'),
     createdAt: str(obj, 'createdAt', 40, 1),
   });
 }
@@ -242,6 +259,7 @@ export const PARSERS: { [C in CollectionId]: (value: unknown) => CollectionItem[
   categories: parseCategory,
   transactions: parseTransaction,
   fixedItems: parseFixedItem,
+  ledgerCategories: parseLedgerCategory,
 };
 
 /** `{ items: [...] }` 요청 본문을 검증한다. 같은 id가 여러 번 오면 마지막 것을 쓴다. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_NOTE_LENGTH } from '../../shared/data.js';
-import { parseCategory, parseFixedItem, parseTodo, parseTransaction } from './validate.js';
+import { parseCategory, parseFixedItem, parseLedgerCategory, parseTodo, parseTransaction } from './validate.js';
 
 const base = {
   id: 't1',
@@ -10,6 +10,30 @@ const base = {
   date: '2026-10-15',
   createdAt: '2026-10-15T00:00:00Z',
 };
+
+describe('parseLedgerCategory', () => {
+  const category = { id: 'c1', type: 'expense', name: '반려동물', color: '#22c55e', icon: '🐶', createdAt: 'x' };
+
+  it('사용자 카테고리와 기본 카테고리 수정본을 저장한다', () => {
+    expect(parseLedgerCategory(category)).toEqual(category);
+    expect(parseLedgerCategory({ ...category, id: 'expense-cafe', base: 'cafe', hidden: true })).toMatchObject({
+      base: 'cafe',
+      hidden: true,
+    });
+  });
+
+  it('형식이 틀리면 거부한다', () => {
+    expect(() => parseLedgerCategory({ ...category, color: 'green' })).toThrow(/color/);
+    expect(() => parseLedgerCategory({ ...category, name: '' })).toThrow(/name/);
+    expect(() => parseLedgerCategory({ ...category, type: 'saving' })).toThrow(/type/);
+    expect(() => parseLedgerCategory({ ...category, hidden: 'yes' })).toThrow(/hidden/);
+  });
+
+  it('내역은 사용자 카테고리 id(uuid)를 가리킬 수 있다', () => {
+    const uuid = 'b6f1c2a0-1234-4abc-9def-0123456789ab';
+    expect(parseTransaction({ ...base, category: uuid }).category).toBe(uuid);
+  });
+});
 
 describe('parseFixedItem', () => {
   const fixedBase = {

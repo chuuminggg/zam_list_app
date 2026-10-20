@@ -7,12 +7,28 @@ const WISH_MODES: { value: WishPurchaseMode; label: string; description: string 
   { value: 'auto', label: '자동 기록', description: '위시 가격으로 바로 지출을 추가해요. 가격이 없으면 입력 시트를 띄워요.' },
 ];
 
-export default function LedgerSettingsModal({ onClose }: { onClose: () => void }) {
+interface LedgerSettingsModalProps {
+  onClose: () => void;
+  onOpenCategories: () => void;
+}
+
+export default function LedgerSettingsModal({ onClose, onOpenCategories }: LedgerSettingsModalProps) {
   const mode = useLedgerPrefsStore((s) => s.wishPurchaseMode);
   const setMode = useLedgerPrefsStore((s) => s.setWishPurchaseMode);
 
   return (
     <Modal open title="가계부 설정" onClose={onClose} placement="bottom">
+      <button
+        type="button"
+        onClick={onOpenCategories}
+        className="w-full flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-700 p-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+      >
+        <span>
+          <span className="block text-sm font-medium text-gray-900 dark:text-white">카테고리 관리</span>
+          <span className="block text-xs text-gray-500 dark:text-gray-400">추가하거나 이름·색상·아이콘을 바꾸고, 안 쓰는 기본 카테고리를 숨겨요.</span>
+        </span>
+        <span aria-hidden="true" className="text-gray-400">›</span>
+      </button>
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
           위시리스트에서 "구매함"으로 바꾸면

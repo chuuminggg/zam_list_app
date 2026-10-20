@@ -54,6 +54,21 @@ export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
 /** 결제수단을 고르지 않은 지출 */
 export const PAYMENT_UNSET_LABEL = '미지정';
 
+/** 카테고리를 지울 때 내역을 옮겨 갈 기본 카테고리 (지출·수입 모두 있다) */
+export const FALLBACK_CATEGORY_ID = 'etc';
+
+/** 카테고리 색 고르기 팔레트 */
+export const CATEGORY_COLORS = [
+  '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#0ea5e9',
+  '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#ec4899', '#64748b',
+];
+
+/** 카테고리 아이콘 빠른 선택 */
+export const CATEGORY_ICONS = [
+  '🍚', '🍜', '🍺', '☕', '🛒', '🚗', '⛽', '🏠', '💡', '📱', '🎮', '🎬',
+  '✈️', '🐶', '👶', '💄', '👕', '🏋️', '💊', '📚', '🎁', '💸', '💰', '📈',
+];
+
 /** 목록에 없는 카테고리 id는 id를 그대로 이름으로 보여준다. */
 export function findCategory(type: LedgerType, id: string): LedgerCategory {
   return LEDGER_CATEGORIES[type].find((c) => c.id === id) ?? { id, name: id, color: '#9ca3af', icon: '💸' };

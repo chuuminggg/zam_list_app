@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { FixedItem, Transaction } from '../types';
+import type { FixedItem, LedgerType, Transaction } from '../types';
 
 export type NewTransaction = Omit<Transaction, 'id' | 'createdAt'>;
 export type NewFixedItem = Omit<FixedItem, 'id' | 'createdAt'>;
@@ -17,6 +17,8 @@ interface LedgerStore {
   addFixedItem: (item: NewFixedItem) => void;
   updateFixedItem: (id: string, updates: Partial<NewFixedItem>) => void;
   deleteFixedItem: (id: string) => void;
+  /** 한 구분(수입/지출)의 내역·고정 항목 카테고리를 다른 카테고리로 옮긴다 (카테고리 삭제 시). */
+  moveCategory: (type: LedgerType, from: string, to: string) => void;
 }
 
 const created = () => ({ id: crypto.randomUUID(), createdAt: new Date().toISOString() });
@@ -50,6 +52,12 @@ export const useLedgerStore = create<LedgerStore>()(
         })),
       deleteFixedItem: (id) =>
         set((state) => ({ fixedItems: state.fixedItems.filter((f) => f.id !== id) })),
+      moveCategory: (type, from, to) =>
+        set((state) => {
+          const move = <T extends { type: LedgerType; category: string }>(item: T): T =>
+            item.type === type && item.category === from ? { ...item, category: to } : item;
+          return { transactions: state.transactions.map(move), fixedItems: state.fixedItems.map(move) };
+        }),
     }),
     { name: 'zam-ledger' }
   )

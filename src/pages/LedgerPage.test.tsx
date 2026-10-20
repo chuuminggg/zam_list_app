@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLedgerCategoryStore } from '../stores/ledgerCategoryStore';
 import { useLedgerPrefsStore } from '../stores/ledgerPrefsStore';
 import { useLedgerStore } from '../stores/ledgerStore';
 import LedgerPage from './LedgerPage';
@@ -18,6 +19,7 @@ afterEach(() => {
   vi.useRealTimers();
   useLedgerStore.setState({ transactions: [], fixedItems: [] });
   useLedgerPrefsStore.setState({ lastPaymentMethod: undefined });
+  useLedgerCategoryStore.setState({ categories: [] });
   localStorage.clear();
 });
 
@@ -173,6 +175,50 @@ describe('LedgerPage', () => {
     ]);
     await userEvent.click(screen.getByRole('button', { name: '이전 달' }));
     expect(total('지출 합계')).toBe('450,000원');
+  });
+
+  it('카테고리를 추가·숨기고, 지울 때 내역을 다른 카테고리로 옮긴다', async () => {
+    render(<LedgerPage />);
+    const openCategories = async () => {
+      await userEvent.click(screen.getByRole('button', { name: '가계부 설정' }));
+      await userEvent.click(screen.getByRole('button', { name: /카테고리 관리/ }));
+      return screen.getByRole('dialog', { name: '카테고리 관리' });
+    };
+
+    // 사용자 카테고리 추가
+    await userEvent.click(within(await openCategories()).getByRole('button', { name: '+ 카테고리' }));
+    let form = screen.getByRole('dialog', { name: '지출 카테고리 추가' });
+    await userEvent.type(within(form).getByLabelText('카테고리 이름'), '반려동물');
+    await userEvent.click(within(form).getByRole('radio', { name: '🐶' }));
+    await userEvent.click(within(form).getByRole('button', { name: '추가' }));
+
+    // 기본 카테고리 식비 숨기기
+    await userEvent.click(within(screen.getByRole('dialog', { name: '카테고리 관리' })).getByText('식비'));
+    form = screen.getByRole('dialog', { name: '지출 카테고리 수정' });
+    await userEvent.click(within(form).getByRole('checkbox'));
+    await userEvent.click(within(form).getByRole('button', { name: '저장' }));
+    await userEvent.click(within(screen.getByRole('dialog', { name: '카테고리 관리' })).getByRole('button', { name: '닫기' }));
+
+    // 입력 시트: 숨긴 식비는 없고 반려동물이 있다
+    await userEvent.click(screen.getByRole('button', { name: '+ 내역' }));
+    const sheet = screen.getByRole('dialog', { name: '내역 추가' });
+    const chips = within(sheet).getByRole('radiogroup', { name: '카테고리' });
+    expect(within(chips).queryByRole('radio', { name: /식비/ })).toBeNull();
+    await userEvent.click(within(chips).getByRole('radio', { name: /반려동물/ }));
+    await userEvent.type(within(sheet).getByLabelText('금액'), '30000');
+    await userEvent.click(within(sheet).getByRole('button', { name: '추가' }));
+    const petId = useLedgerCategoryStore.getState().categories.find((c) => c.name === '반려동물')?.id;
+    expect(useLedgerStore.getState().transactions).toMatchObject([{ category: petId }]);
+    expect(within(screen.getByRole('region', { name: '카테고리별 지출' })).getByText('반려동물')).toBeTruthy();
+
+    // 지우면 내역을 고른 카테고리(기본 기타)로 옮긴다
+    await userEvent.click(within(await openCategories()).getByText('반려동물'));
+    await userEvent.click(within(screen.getByRole('dialog', { name: '지출 카테고리 수정' })).getByRole('button', { name: '삭제' }));
+    const confirm = screen.getByRole('dialog', { name: '카테고리 삭제' });
+    expect(within(confirm).getByText(/내역 1건/)).toBeTruthy();
+    await userEvent.click(within(confirm).getByRole('button', { name: '옮기고 삭제' }));
+    expect(useLedgerStore.getState().transactions).toMatchObject([{ category: 'etc' }]);
+    expect(useLedgerCategoryStore.getState().categories.map((c) => c.name)).toEqual(['식비']);
   });
 
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {

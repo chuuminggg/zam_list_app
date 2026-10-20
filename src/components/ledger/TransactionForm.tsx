@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
+import { useLedgerCategories } from '../../hooks/useLedgerCategories';
 import { useLedgerPrefsStore } from '../../stores/ledgerPrefsStore';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { LedgerType, Transaction } from '../../types';
@@ -28,10 +29,11 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
   const deleteTransaction = useLedgerStore((s) => s.deleteTransaction);
   const lastPaymentMethod = useLedgerPrefsStore((s) => s.lastPaymentMethod);
   const setLastPaymentMethod = useLedgerPrefsStore((s) => s.setLastPaymentMethod);
+  const categories = useLedgerCategories();
   const initial = transaction ?? draft;
   const [form, setForm] = useState({
     type: (initial?.type ?? 'expense') as LedgerType,
-    category: initial?.category ?? 'food',
+    category: initial?.category ?? categories.defaultFor('expense', 'food'),
     amount: initial?.amount != null ? String(initial.amount) : '',
     date: initial?.date ?? defaultDate,
     memo: initial?.memo ?? '',
