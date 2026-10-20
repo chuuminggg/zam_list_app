@@ -96,4 +96,24 @@ describe('ledger utils', () => {
     );
     expect(dailyTotals(entries).get('2026-09-10')).toEqual({ income: 9000, expense: 5000 });
   });
+
+  it('지출을 결제수단별로 합치고, 고르지 않은 지출은 미지정으로 둔다', () => {
+    const entries = entriesForMonth(
+      [
+        tx({ id: 'a', amount: 30000, paymentMethod: 'card' }),
+        tx({ id: 'b', amount: 5000, paymentMethod: 'cash' }),
+        tx({ id: 'c', amount: 7000, paymentMethod: 'card' }),
+        tx({ id: 'd', amount: 1000 }),
+        tx({ id: 'in', type: 'income', amount: 90000, category: 'side', paymentMethod: 'transfer' }),
+      ],
+      [fixed({ id: 'rent', paymentMethod: 'transfer' })],
+      '2026-09'
+    );
+    expect(summarize(entries).expenseByPayment).toEqual([
+      { method: 'card', amount: 37000 },
+      { method: 'cash', amount: 5000 },
+      { method: 'transfer', amount: 500000 },
+      { method: null, amount: 1000 },
+    ]);
+  });
 });

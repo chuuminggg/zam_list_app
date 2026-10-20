@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useLedgerPrefsStore } from '../stores/ledgerPrefsStore';
 import { useLedgerStore } from '../stores/ledgerStore';
 import LedgerPage from './LedgerPage';
 
@@ -16,6 +17,7 @@ afterEach(() => {
   cleanup();
   vi.useRealTimers();
   useLedgerStore.setState({ transactions: [], fixedItems: [] });
+  useLedgerPrefsStore.setState({ lastPaymentMethod: undefined });
   localStorage.clear();
 });
 
@@ -92,6 +94,32 @@ describe('LedgerPage', () => {
 
     await userEvent.click(day);
     expect(within(screen.getByRole('region', { name: '내역' })).getByText('커피')).toBeTruthy();
+  });
+
+  it('지출에 결제수단을 고르면 내역·결제수단별 합계에 보이고, 다음 지출의 기본값이 된다', async () => {
+    render(<LedgerPage />);
+    expect(screen.queryByRole('region', { name: '결제수단별 지출' })).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: '+ 내역' }));
+    let dialog = screen.getByRole('dialog', { name: '내역 추가' });
+    await userEvent.type(within(dialog).getByLabelText('금액'), '12000');
+    await userEvent.click(within(dialog).getByRole('radio', { name: '카드' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: '추가' }));
+
+    expect(useLedgerStore.getState().transactions).toMatchObject([{ amount: 12000, paymentMethod: 'card' }]);
+    expect(within(screen.getByRole('region', { name: '내역' })).getByText('카드')).toBeTruthy();
+    expect(within(screen.getByRole('region', { name: '결제수단별 지출' })).getByText('12,000원')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: '+ 내역' }));
+    dialog = screen.getByRole('dialog', { name: '내역 추가' });
+    expect(within(dialog).getByRole('radio', { name: '카드' }).getAttribute('aria-checked')).toBe('true');
+
+    // 수입에는 결제수단을 두지 않는다.
+    await userEvent.click(within(dialog).getByRole('button', { name: '수입' }));
+    expect(within(dialog).queryByRole('radiogroup', { name: '결제수단' })).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText('금액'), '50000');
+    await userEvent.click(within(dialog).getByRole('button', { name: '추가' }));
+    expect(useLedgerStore.getState().transactions[1].paymentMethod).toBeUndefined();
   });
 
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {

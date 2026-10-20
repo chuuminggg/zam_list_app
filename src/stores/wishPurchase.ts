@@ -20,9 +20,10 @@ export function syncWishPurchase(item: WishItem, prev: WishItem['status'] | unde
   if (isPurchase(prev, item.status)) {
     // 이미 기록한 지출이 있으면(다른 기기에서 기록 등) 또 만들지 않는다.
     if (linked.length > 0) return;
-    const draft = purchaseDraft(item, todayKey());
+    const prefs = useLedgerPrefsStore.getState();
+    const draft = purchaseDraft(item, todayKey(), prefs.lastPaymentMethod);
     const { openSheet } = useLedgerSheetStore.getState();
-    if (useLedgerPrefsStore.getState().wishPurchaseMode === 'auto' && draft.amount !== undefined) {
+    if (prefs.wishPurchaseMode === 'auto' && draft.amount !== undefined) {
       const created = ledger.addTransaction({ ...draft, amount: draft.amount });
       showToast({
         message: '가계부에 기록했어요',

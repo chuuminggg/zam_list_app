@@ -1,4 +1,5 @@
-import type { FixedItem, LedgerType, Transaction } from '../types';
+import { PAYMENT_METHODS } from '../../shared/data';
+import type { FixedItem, LedgerType, PaymentMethod, Transaction } from '../types';
 import { toDateKey } from './date';
 
 /** 월 키: `YYYY-MM` */
@@ -14,6 +15,7 @@ export interface LedgerEntry {
   date: string;
   /** 일반 내역은 메모, 고정 항목은 이름 */
   label?: string;
+  paymentMethod?: PaymentMethod;
   fixed: boolean;
   /** 일반 내역이면 원본 */
   transaction?: Transaction;
@@ -27,6 +29,8 @@ export interface MonthSummary {
   balance: number;
   /** 지출 카테고리별 합계 (큰 순) */
   expenseByCategory: { category: string; amount: number }[];
+  /** 지출 결제수단별 합계 (카드·현금·계좌이체·기타·미지정 순, 0원은 뺀다). 미지정은 null */
+  expenseByPayment: { method: PaymentMethod | null; amount: number }[];
 }
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -83,6 +87,7 @@ export function fixedEntriesForMonth(items: FixedItem[], month: MonthKey): Ledge
       category: f.category,
       date: toDateKey(new Date(y, m - 1, Math.min(f.day, lastDay))),
       label: f.name,
+      paymentMethod: f.paymentMethod,
       fixed: true,
     }));
 }
@@ -98,6 +103,7 @@ export function entriesForMonth(transactions: Transaction[], fixedItems: FixedIt
       category: t.category,
       date: t.date,
       label: t.memo,
+      paymentMethod: t.paymentMethod,
       fixed: false,
       transaction: t,
     }));
@@ -112,6 +118,7 @@ export function summarize(entries: LedgerEntry[]): MonthSummary {
   let fixedIncome = 0;
   let fixedExpense = 0;
   const byCategory = new Map<string, number>();
+  const byPayment = new Map<PaymentMethod | null, number>();
   for (const entry of entries) {
     if (entry.type === 'income') {
       income += entry.amount;
@@ -120,6 +127,8 @@ export function summarize(entries: LedgerEntry[]): MonthSummary {
       expense += entry.amount;
       if (entry.fixed) fixedExpense += entry.amount;
       byCategory.set(entry.category, (byCategory.get(entry.category) ?? 0) + entry.amount);
+      const method = entry.paymentMethod ?? null;
+      byPayment.set(method, (byPayment.get(method) ?? 0) + entry.amount);
     }
   }
   return {
@@ -131,6 +140,9 @@ export function summarize(entries: LedgerEntry[]): MonthSummary {
     expenseByCategory: [...byCategory]
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount),
+    expenseByPayment: [...PAYMENT_METHODS, null]
+      .map((method) => ({ method, amount: byPayment.get(method) ?? 0 }))
+      .filter((p) => p.amount > 0),
   };
 }
 

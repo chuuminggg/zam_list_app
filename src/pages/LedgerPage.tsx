@@ -6,6 +6,7 @@ import FixedItemModal from '../components/ledger/FixedItemModal';
 import LedgerCalendar from '../components/ledger/LedgerCalendar';
 import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
+import PaymentBreakdown from '../components/ledger/PaymentBreakdown';
 import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
 import { useLedgerStore } from '../stores/ledgerStore';
@@ -77,6 +78,13 @@ export default function LedgerPage() {
         {!selectedDate && summary.expense > 0 && (
           <div className={CARD}>
             <CategoryBreakdown summary={summary} />
+          </div>
+        )}
+
+        {/* 결제수단을 고른 지출이 하나라도 있을 때만 보여준다. */}
+        {!selectedDate && summary.expenseByPayment.some((p) => p.method !== null) && (
+          <div className={CARD}>
+            <PaymentBreakdown summary={summary} />
           </div>
         )}
 

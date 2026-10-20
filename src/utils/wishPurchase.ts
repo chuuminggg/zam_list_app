@@ -1,6 +1,6 @@
 import { MAX_LEDGER_AMOUNT } from '../../shared/data';
 import type { NewTransaction } from '../stores/ledgerStore';
-import type { WishItem } from '../types';
+import type { PaymentMethod, WishItem } from '../types';
 
 /** 입력 시트에 미리 채울 내역. 위시 가격이 없으면 금액이 비어 있다. */
 export type TransactionDraft = Omit<NewTransaction, 'amount'> & { amount?: number };
@@ -15,9 +15,17 @@ export function isPurchaseUndone(prev: WishItem['status'] | undefined, next: Wis
   return prev === 'bought' && next !== 'bought';
 }
 
-/** 위시 항목으로 지출 초안을 만든다. 카테고리는 쇼핑, 메모는 상품명. */
-export function purchaseDraft(item: WishItem, date: string): TransactionDraft {
+/** 위시 항목으로 지출 초안을 만든다. 카테고리는 쇼핑, 메모는 상품명, 결제수단은 마지막에 쓴 값. */
+export function purchaseDraft(item: WishItem, date: string, paymentMethod?: PaymentMethod): TransactionDraft {
   const { price } = item;
   const amount = price != null && Number.isInteger(price) && price > 0 && price <= MAX_LEDGER_AMOUNT ? price : undefined;
-  return { type: 'expense', category: 'shopping', amount, date, memo: item.name.slice(0, 500), wishId: item.id };
+  return {
+    type: 'expense',
+    category: 'shopping',
+    amount,
+    date,
+    memo: item.name.slice(0, 500),
+    paymentMethod,
+    wishId: item.id,
+  };
 }

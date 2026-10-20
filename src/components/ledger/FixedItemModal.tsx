@@ -3,13 +3,14 @@ import Badge from '../common/Badge';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
-import { TYPE_LABEL, findCategory } from '../../constants/ledger';
+import { PAYMENT_LABEL, TYPE_LABEL, findCategory } from '../../constants/ledger';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { FixedItem, LedgerType } from '../../types';
 import { formatMonth, formatWon, parseAmount, type MonthKey } from '../../utils/ledger';
 import AmountInput from './AmountInput';
 import CategoryIcon from './CategoryIcon';
 import LedgerTypeFields from './LedgerTypeFields';
+import PaymentMethodField from './PaymentMethodField';
 
 const MONTH_PATTERN = /^\d{4}-\d{2}$/;
 
@@ -63,6 +64,7 @@ export default function FixedItemModal({ onClose, month }: FixedItemModalProps) 
                     </span>
                     <span className="block text-xs text-gray-400 dark:text-gray-500">
                       매월 {item.day}일 · {findCategory(item.type, item.category).name}
+                      {item.paymentMethod ? ` · ${PAYMENT_LABEL[item.paymentMethod]}` : ''}
                       {item.endMonth ? ` · ${formatMonth(item.endMonth)}까지` : ''}
                     </span>
                   </span>
@@ -109,6 +111,7 @@ function FixedItemForm({ item, month, onDone }: FixedItemFormProps) {
     day: item ? String(item.day) : '1',
     startMonth: item?.startMonth ?? month,
     endMonth: item?.endMonth ?? '',
+    paymentMethod: item?.paymentMethod,
   });
   const set = (updates: Partial<typeof form>) => setForm((f) => ({ ...f, ...updates }));
 
@@ -134,6 +137,7 @@ function FixedItemForm({ item, month, onDone }: FixedItemFormProps) {
       day,
       startMonth: form.startMonth,
       endMonth,
+      paymentMethod: form.type === 'expense' ? form.paymentMethod : undefined,
     };
     if (item) updateFixedItem(item.id, payload);
     else addFixedItem(payload);
@@ -151,6 +155,9 @@ function FixedItemForm({ item, month, onDone }: FixedItemFormProps) {
         className="text-sm"
       />
       <AmountInput value={form.amount} type={form.type} onChange={(amount) => set({ amount })} />
+      {form.type === 'expense' && (
+        <PaymentMethodField value={form.paymentMethod} onChange={(paymentMethod) => set({ paymentMethod })} />
+      )}
       <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
         매월
         <Input

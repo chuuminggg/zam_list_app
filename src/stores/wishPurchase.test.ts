@@ -32,7 +32,7 @@ afterEach(() => {
   vi.useRealTimers();
   useWishStore.setState({ items: [] });
   useLedgerStore.setState({ transactions: [], fixedItems: [] });
-  useLedgerPrefsStore.setState({ wishPurchaseMode: 'ask' });
+  useLedgerPrefsStore.setState({ wishPurchaseMode: 'ask', lastPaymentMethod: undefined });
   useToastStore.setState({ toast: null });
   useLedgerSheetStore.setState({ target: null });
   localStorage.clear();
@@ -68,6 +68,14 @@ describe('setWishStatus', () => {
 
     expect(transactions()).toEqual([]);
     expect(sheet()).toMatchObject({ draft: { wishId: 'w1', amount: undefined } });
+  });
+
+  it('마지막에 쓴 결제수단을 구매 지출에도 쓴다', () => {
+    useLedgerPrefsStore.setState({ wishPurchaseMode: 'auto', lastPaymentMethod: 'card' });
+    useWishStore.setState({ items: [wish()] });
+    setWishStatus(currentWish(), 'bought');
+
+    expect(transactions()).toMatchObject([{ wishId: 'w1', paymentMethod: 'card' }]);
   });
 
   it('이미 연결된 지출이 있으면 다시 만들지 않는다', () => {

@@ -3,6 +3,7 @@ export type {
   FixedItem,
   JournalType,
   LedgerType,
+  PaymentMethod,
   ProductSource,
   StockLink,
   Todo,

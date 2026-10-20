@@ -4,6 +4,7 @@ import {
   MAX_LEDGER_AMOUNT,
   MAX_NOTE_LENGTH,
   MAX_PRICE_HISTORY,
+  PAYMENT_METHODS,
   safeHttpUrl,
   type Category,
   type CollectionId,
@@ -174,6 +175,10 @@ function pattern(obj: Obj, field: string, re: RegExp): string {
   return value;
 }
 
+function optPaymentMethod(obj: Obj) {
+  return obj.paymentMethod == null ? undefined : oneOf(obj, 'paymentMethod', PAYMENT_METHODS);
+}
+
 export function parseTransaction(value: unknown): Transaction {
   const obj = asObject(value, 'transaction');
   return compact({
@@ -183,6 +188,7 @@ export function parseTransaction(value: unknown): Transaction {
     category: str(obj, 'category', 30, 1),
     date: pattern(obj, 'date', DATE_PATTERN),
     memo: optStr(obj, 'memo', 500),
+    paymentMethod: optPaymentMethod(obj),
     wishId: optPattern(obj, 'wishId', ID_PATTERN),
     createdAt: str(obj, 'createdAt', 40, 1),
   });
@@ -201,6 +207,7 @@ export function parseFixedItem(value: unknown): FixedItem {
     name: str(obj, 'name', 100, 1),
     amount: amount(obj),
     category: str(obj, 'category', 30, 1),
+    paymentMethod: optPaymentMethod(obj),
     day,
     startMonth,
     endMonth,

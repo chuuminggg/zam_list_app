@@ -19,6 +19,12 @@ describe('parseTransaction', () => {
     expect(parseTransaction(base)).not.toHaveProperty('wishId');
   });
 
+  it('결제수단은 정해진 값만 받는다', () => {
+    expect(parseTransaction({ ...base, paymentMethod: 'card' }).paymentMethod).toBe('card');
+    expect(parseTransaction(base)).not.toHaveProperty('paymentMethod');
+    expect(() => parseTransaction({ ...base, paymentMethod: 'bitcoin' })).toThrow(/paymentMethod/);
+  });
+
   it('형식이 틀린 위시 연결 id는 거부한다', () => {
     expect(() => parseTransaction({ ...base, wishId: '../wish' })).toThrow(/wishId/);
   });

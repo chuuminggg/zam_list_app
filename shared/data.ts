@@ -86,6 +86,10 @@ export interface WishItem {
 /** 가계부 내역 구분 */
 export type LedgerType = 'income' | 'expense';
 
+/** 지출 결제수단: 카드·현금·계좌이체·기타 */
+export const PAYMENT_METHODS = ['card', 'cash', 'transfer', 'etc'] as const;
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
 /** 가계부 내역 (한 번 들어오거나 나간 돈) */
 export interface Transaction {
   id: string;
@@ -97,6 +101,8 @@ export interface Transaction {
   /** 날짜 (로컬 기준 YYYY-MM-DD) */
   date: string;
   memo?: string;
+  /** 결제수단 (지출만). 없으면 미지정 */
+  paymentMethod?: PaymentMethod;
   /** 위시리스트에서 "구매함"으로 바꿔 기록한 지출이면 그 위시 항목 id */
   wishId?: string;
   createdAt: string;
@@ -110,6 +116,8 @@ export interface FixedItem {
   /** 금액 (원, 양의 정수) */
   amount: number;
   category: string;
+  /** 결제수단 (지출만). 없으면 미지정 */
+  paymentMethod?: PaymentMethod;
   /** 매월 며칠 (1~31). 그 달에 없는 날이면 말일로 본다. */
   day: number;
   /** 적용 시작 월 (YYYY-MM) */

@@ -2,12 +2,14 @@ import { useState } from 'react';
 import Button from '../common/Button';
 import Input from '../common/Input';
 import Modal from '../common/Modal';
+import { useLedgerPrefsStore } from '../../stores/ledgerPrefsStore';
 import { useLedgerStore } from '../../stores/ledgerStore';
 import type { LedgerType, Transaction } from '../../types';
 import { parseAmount } from '../../utils/ledger';
 import type { TransactionDraft } from '../../utils/wishPurchase';
 import AmountInput from './AmountInput';
 import LedgerTypeFields from './LedgerTypeFields';
+import PaymentMethodField from './PaymentMethodField';
 
 interface TransactionFormProps {
   open: boolean;
@@ -24,6 +26,8 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
   const addTransaction = useLedgerStore((s) => s.addTransaction);
   const updateTransaction = useLedgerStore((s) => s.updateTransaction);
   const deleteTransaction = useLedgerStore((s) => s.deleteTransaction);
+  const lastPaymentMethod = useLedgerPrefsStore((s) => s.lastPaymentMethod);
+  const setLastPaymentMethod = useLedgerPrefsStore((s) => s.setLastPaymentMethod);
   const initial = transaction ?? draft;
   const [form, setForm] = useState({
     type: (initial?.type ?? 'expense') as LedgerType,
@@ -31,6 +35,8 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
     amount: initial?.amount != null ? String(initial.amount) : '',
     date: initial?.date ?? defaultDate,
     memo: initial?.memo ?? '',
+    // 새 지출은 마지막에 쓴 결제수단으로 시작한다.
+    paymentMethod: transaction ? transaction.paymentMethod : draft ? draft.paymentMethod : lastPaymentMethod,
   });
   // 위시 구매로 띄운 시트는 기록하지 않고 닫을 수 있다.
   const fromWish = !transaction && draft?.wishId !== undefined;
@@ -45,7 +51,10 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
       amount,
       date: form.date,
       memo: form.memo.trim() || undefined,
+      // 결제수단은 지출에만 둔다.
+      paymentMethod: form.type === 'expense' ? form.paymentMethod : undefined,
     };
+    if (payload.type === 'expense') setLastPaymentMethod(payload.paymentMethod);
     if (transaction) updateTransaction(transaction.id, payload);
     else addTransaction({ ...payload, wishId: draft?.wishId });
     onClose();
@@ -69,6 +78,12 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
         onChange={(value) => setForm((f) => ({ ...f, amount: value }))}
         onEnter={handleSubmit}
       />
+      {form.type === 'expense' && (
+        <PaymentMethodField
+          value={form.paymentMethod}
+          onChange={(paymentMethod) => setForm((f) => ({ ...f, paymentMethod }))}
+        />
+      )}
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <Input
           type="date"

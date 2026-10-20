@@ -1,4 +1,4 @@
-import type { LedgerType } from '../types';
+import type { LedgerType, PaymentMethod } from '../types';
 
 export interface LedgerCategory {
   id: string;
@@ -43,6 +43,16 @@ export const TYPE_LABEL: Record<LedgerType, string> = {
   income: '수입',
   expense: '지출',
 };
+
+export const PAYMENT_LABEL: Record<PaymentMethod, string> = {
+  card: '카드',
+  cash: '현금',
+  transfer: '계좌이체',
+  etc: '기타',
+};
+
+/** 결제수단을 고르지 않은 지출 */
+export const PAYMENT_UNSET_LABEL = '미지정';
 
 /** 목록에 없는 카테고리 id는 id를 그대로 이름으로 보여준다. */
 export function findCategory(type: LedgerType, id: string): LedgerCategory {

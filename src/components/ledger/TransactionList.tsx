@@ -1,6 +1,6 @@
 import Badge from '../common/Badge';
 import EmptyState from '../common/EmptyState';
-import { findCategory } from '../../constants/ledger';
+import { PAYMENT_LABEL, findCategory } from '../../constants/ledger';
 import type { Transaction } from '../../types';
 import { formatDateHeading } from '../../utils/date';
 import { formatWon, type LedgerEntry } from '../../utils/ledger';
@@ -41,6 +41,10 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
             <ul>
               {dayEntries.map((entry) => {
                 const category = findCategory(entry.type, entry.category);
+                // 메모가 있으면 제목 아래에 카테고리를, 결제수단이 있으면 그 옆에 함께 적는다.
+                const detail = [entry.label && category.name, entry.paymentMethod && PAYMENT_LABEL[entry.paymentMethod]]
+                  .filter(Boolean)
+                  .join(' · ');
                 return (
                   <li key={entry.key}>
                     <button
@@ -56,9 +60,7 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
                           </span>
                           {entry.fixed && <Badge>고정</Badge>}
                         </span>
-                        {entry.label && (
-                          <span className="block text-xs text-gray-400 dark:text-gray-500">{category.name}</span>
-                        )}
+                        {detail && <span className="block text-xs text-gray-400 dark:text-gray-500">{detail}</span>}
                       </span>
                       <span
                         className={`text-sm font-semibold whitespace-nowrap tabular-nums ${entry.type === 'income' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}
