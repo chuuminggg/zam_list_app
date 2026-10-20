@@ -119,4 +119,34 @@ describe('TodoPage', () => {
     await user.click(within(dialog).getByRole('button', { name: '닫기' }));
     expect(useTodoStore.getState().todos[0]).not.toHaveProperty('note');
   });
+
+  it('일지 모아보기에서 이번 주 회사 일지를 보고, 일기로 바꿀 수 있다', async () => {
+    const user = userEvent.setup();
+    useCategoryStore.setState({
+      categories: [
+        { id: 'c1', name: '회사', color: '#3b82f6', order: 0, journalType: 'work', createdAt: '2026-09-01' },
+        { id: 'c2', name: '생활', color: '#22c55e', order: 1, createdAt: '2026-09-01' },
+      ],
+    });
+    useTodoStore.setState({
+      todos: [
+        { id: 't1', title: '결제 API', done: true, date: todayKey(), categoryId: 'c1', priority: 'medium', category: '', note: '## 한 일\n- 트랜잭션 정리', createdAt: '2026-09-01' },
+        { id: 't2', title: '장보기', done: true, date: todayKey(), categoryId: 'c2', priority: 'medium', category: '', createdAt: '2026-09-01' },
+      ],
+    });
+    render(<TodoPage />);
+
+    await user.click(screen.getByRole('button', { name: '일지' }));
+    const dialog = screen.getByRole('dialog', { name: '일지 모아보기' });
+    expect(within(dialog).getByRole('heading', { name: /주간 업무 일지/ })).toBeTruthy();
+    expect(within(dialog).getByText('트랜잭션 정리')).toBeTruthy();
+    expect(within(dialog).queryByText(/장보기/)).toBeNull();
+
+    await user.click(within(dialog).getByRole('button', { name: '일기' }));
+    expect(within(dialog).getByText(/장보기/)).toBeTruthy();
+    expect(within(dialog).queryByText(/결제 API/)).toBeNull();
+
+    await user.click(within(dialog).getByRole('button', { name: '다음 기간' }));
+    expect(within(dialog).getByText(/모을 일기가 없어요/)).toBeTruthy();
+  });
 });

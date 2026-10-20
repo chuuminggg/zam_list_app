@@ -5,6 +5,7 @@ import Modal from '../components/common/Modal';
 import CategoryManagerModal from '../components/todo/CategoryManagerModal';
 import CategorySection from '../components/todo/CategorySection';
 import DayHeader from '../components/todo/DayHeader';
+import JournalExportModal from '../components/todo/JournalExportModal';
 import MonthCalendar from '../components/todo/MonthCalendar';
 import { UNCATEGORIZED_COLOR, UNCATEGORIZED_NAME } from '../constants/todo';
 import { sortCategories, useCategoryStore } from '../stores/categoryStore';
@@ -21,6 +22,7 @@ export default function TodoPage() {
   const [date, setDate] = useState<DateKey>(todayKey);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
 
   // 서버 데이터를 받은 뒤(또는 로그인 전·로컬 전용일 때) 예전 형식 할 일을 옮긴다.
   // 불러오는 중에 바꾸면 서버 데이터로 덮어써지므로 기다린다.
@@ -62,6 +64,7 @@ export default function TodoPage() {
           done={doneCount}
           onOpenCalendar={() => setCalendarOpen(true)}
           onManageCategories={() => setManagerOpen(true)}
+          onOpenJournal={() => setJournalOpen(true)}
         />
 
         {sections.length === 0 ? (
@@ -94,6 +97,7 @@ export default function TodoPage() {
       </Modal>
 
       <CategoryManagerModal open={managerOpen} onClose={() => setManagerOpen(false)} />
+      {journalOpen && <JournalExportModal date={date} onClose={() => setJournalOpen(false)} />}
     </div>
   );
 }

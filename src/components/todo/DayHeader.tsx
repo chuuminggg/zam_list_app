@@ -9,6 +9,7 @@ interface DayHeaderProps {
   done: number;
   onOpenCalendar: () => void;
   onManageCategories: () => void;
+  onOpenJournal: () => void;
 }
 
 export default function DayHeader({
@@ -18,6 +19,7 @@ export default function DayHeader({
   done,
   onOpenCalendar,
   onManageCategories,
+  onOpenJournal,
 }: DayHeaderProps) {
   const isToday = date === todayKey();
 
@@ -48,6 +50,9 @@ export default function DayHeader({
         )}
         <Button size="sm" variant="ghost" className="md:hidden" onClick={onOpenCalendar}>
           캘린더
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onOpenJournal}>
+          일지
         </Button>
         <Button size="sm" variant="ghost" onClick={onManageCategories}>
           카테고리

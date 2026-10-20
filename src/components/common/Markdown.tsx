@@ -7,11 +7,7 @@ interface MarkdownProps {
   onToggleTask?: (line: number) => void;
 }
 
-const HEADING_CLASS = {
-  1: 'text-xl font-bold',
-  2: 'text-base font-bold',
-  3: 'text-sm font-semibold',
-};
+const HEADING_CLASS = ['text-xl font-bold', 'text-base font-bold', 'text-sm font-semibold'];
 
 function InlineText({ tokens }: { tokens: Inline[] }) {
   return tokens.map((token, i) => {
@@ -39,9 +35,11 @@ export default function Markdown({ text, onToggleTask }: MarkdownProps) {
     <div className="space-y-2 text-sm text-gray-800 dark:text-gray-200 break-words">
       {parseMarkdown(text).map((block, i) => {
         if (block.type === 'heading') {
-          const Tag = `h${block.level + 2}` as 'h3' | 'h4' | 'h5';
+          // 모달 제목(h2) 아래에 오도록 h3부터 쓴다.
+          const Tag = `h${Math.min(block.level + 2, 6)}` as 'h3' | 'h4' | 'h5' | 'h6';
+          const size = HEADING_CLASS[Math.min(block.level, HEADING_CLASS.length) - 1];
           return (
-            <Tag key={i} className={`${HEADING_CLASS[block.level]} text-gray-900 dark:text-white pt-1`}>
+            <Tag key={i} className={`${size} text-gray-900 dark:text-white pt-1`}>
               <InlineText tokens={block.inline} />
             </Tag>
           );
