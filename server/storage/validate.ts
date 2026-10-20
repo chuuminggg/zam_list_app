@@ -1,6 +1,8 @@
 import { SOURCE_PROVIDER_IDS, STOCK_PROVIDER_IDS } from '../../shared/api.js';
 import {
+  JOURNAL_TYPES,
   MAX_LEDGER_AMOUNT,
+  MAX_NOTE_LENGTH,
   MAX_PRICE_HISTORY,
   safeHttpUrl,
   type Category,
@@ -80,6 +82,7 @@ export function parseTodo(value: unknown): Todo {
     categoryId: optPattern(obj, 'categoryId', ID_PATTERN),
     priority: obj.priority == null ? 'medium' : oneOf(obj, 'priority', ['high', 'medium', 'low'] as const),
     category: optStr(obj, 'category', 50) ?? '',
+    note: optStr(obj, 'note', MAX_NOTE_LENGTH),
     createdAt: str(obj, 'createdAt', 40, 1),
   });
 }
@@ -90,13 +93,14 @@ export function parseCategory(value: unknown): Category {
   if (typeof order !== 'number' || !Number.isFinite(order)) invalid('order');
   const color = str(obj, 'color', 7);
   if (!COLOR_PATTERN.test(color)) invalid('color');
-  return {
+  return compact({
     id: id(obj),
     name: str(obj, 'name', 50, 1),
     color,
     order,
+    journalType: obj.journalType == null ? undefined : oneOf(obj, 'journalType', JOURNAL_TYPES),
     createdAt: str(obj, 'createdAt', 40, 1),
-  };
+  });
 }
 
 function price(value: unknown, field: string): number {

@@ -6,7 +6,8 @@ import Modal from '../common/Modal';
 import { CATEGORY_COLORS } from '../../constants/todo';
 import { sortCategories, useCategoryStore } from '../../stores/categoryStore';
 import { useTodoStore } from '../../stores/todoStore';
-import type { Category } from '../../types';
+import type { Category, JournalType } from '../../types';
+import { journalTypeOf } from '../../utils/journal';
 
 interface CategoryManagerModalProps {
   open: boolean;
@@ -42,6 +43,11 @@ function ColorPalette({ value, onChange, label }: ColorPaletteProps) {
   );
 }
 
+const JOURNAL_OPTIONS: { value: JournalType; label: string }[] = [
+  { value: 'work', label: '회사' },
+  { value: 'diary', label: '일기' },
+];
+
 interface CategoryRowProps {
   category: Category;
   isFirst: boolean;
@@ -67,6 +73,8 @@ function CategoryRow({ category, isFirst, isLast }: CategoryRowProps) {
     deleteCategory(category.id);
   };
 
+  const journalType = journalTypeOf(category);
+
   return (
     <li className="py-2 space-y-2">
       <div className="flex items-center gap-2">
@@ -88,6 +96,28 @@ function CategoryRow({ category, isFirst, isLast }: CategoryRowProps) {
           onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && e.currentTarget.blur()}
           className="flex-1 min-w-0 py-1.5 text-sm"
         />
+        <div
+          role="radiogroup"
+          aria-label={`${category.name} 일지 형식`}
+          className="flex flex-shrink-0 rounded-lg bg-gray-100 dark:bg-gray-700 p-0.5 text-xs"
+        >
+          {JOURNAL_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={journalType === option.value}
+              onClick={() => updateCategory(category.id, { journalType: option.value })}
+              className={`px-2 py-1 rounded-md transition-colors ${
+                journalType === option.value
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
         <IconButton
           label={`${category.name} 위로`}
           disabled={isFirst}

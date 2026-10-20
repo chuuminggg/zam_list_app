@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import IconButton from '../common/IconButton';
+import JournalModal from './JournalModal';
 import { useTodoStore } from '../../stores/todoStore';
 import type { Todo } from '../../types';
 import { addDays, todayKey } from '../../utils/date';
@@ -18,6 +19,8 @@ export default function TodoItem({ todo, color }: TodoItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.title);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -88,12 +91,17 @@ export default function TodoItem({ todo, color }: TodoItemProps) {
       ) : (
         <button
           type="button"
-          onClick={startEdit}
+          onClick={() => setJournalOpen(true)}
           className={`flex-1 min-w-0 text-left break-words transition-colors ${
             todo.done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-white'
           }`}
         >
           {todo.title}
+          {todo.note && (
+            <span role="img" aria-label="일지 있음" className="ml-1.5 text-xs inline-block">
+              📝
+            </span>
+          )}
         </button>
       )}
 
@@ -102,7 +110,10 @@ export default function TodoItem({ todo, color }: TodoItemProps) {
           label={`${todo.title} 메뉴`}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((v) => !v)}
+          onClick={() => {
+            setConfirmingDelete(false);
+            setMenuOpen((v) => !v);
+          }}
           className="px-1.5 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 aria-expanded:opacity-100"
         >
           ⋯
@@ -123,17 +134,33 @@ export default function TodoItem({ todo, color }: TodoItemProps) {
             <button type="button" role="menuitem" className={MENU_ITEM} onClick={() => moveTo(addDays(date, 1))}>
               내일 하기
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              className={`${MENU_ITEM} !text-red-500`}
-              onClick={() => deleteTodo(todo.id)}
-            >
-              삭제
-            </button>
+            {confirmingDelete ? (
+              <div role="alert" className="px-3 py-2 space-y-1.5 text-xs text-red-600 dark:text-red-400">
+                <p>일지도 함께 삭제돼요.</p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="w-full py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm"
+                  onClick={() => deleteTodo(todo.id)}
+                >
+                  삭제
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                role="menuitem"
+                className={`${MENU_ITEM} !text-red-500`}
+                onClick={() => (todo.note ? setConfirmingDelete(true) : deleteTodo(todo.id))}
+              >
+                삭제
+              </button>
+            )}
           </div>
         )}
       </div>
+
+      {journalOpen && <JournalModal todo={todo} onClose={() => setJournalOpen(false)} />}
     </li>
   );
 }

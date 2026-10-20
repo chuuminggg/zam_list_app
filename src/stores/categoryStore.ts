@@ -5,7 +5,7 @@ import type { Category } from '../types';
 interface CategoryStore {
   categories: Category[];
   addCategory: (category: Pick<Category, 'name' | 'color'>) => void;
-  updateCategory: (id: string, updates: Partial<Pick<Category, 'name' | 'color'>>) => void;
+  updateCategory: (id: string, updates: Partial<Pick<Category, 'name' | 'color' | 'journalType'>>) => void;
   deleteCategory: (id: string) => void;
   /** 표시 순서에서 앞(-1)이나 뒤(+1)로 한 칸 옮긴다. */
   moveCategory: (id: string, offset: -1 | 1) => void;

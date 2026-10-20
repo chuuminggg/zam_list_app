@@ -7,16 +7,24 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
-  /** bottom: 모바일에서 화면 아래에 붙는 시트 (sm 이상에서는 가운데) */
-  placement?: 'center' | 'bottom';
+  /** bottom: 모바일에서 화면 아래에 붙는 시트, full: 모바일에서 화면 전체 (sm 이상에서는 둘 다 가운데) */
+  placement?: 'center' | 'bottom' | 'full';
+  /** lg: 글을 쓰는 화면처럼 넓은 모달 */
+  size?: 'md' | 'lg';
 }
 
 const PLACEMENT = {
-  center: { overlay: 'items-center p-4', panel: 'rounded-2xl' },
-  bottom: { overlay: 'items-end sm:items-center sm:p-4', panel: 'rounded-t-2xl sm:rounded-2xl' },
+  center: { overlay: 'items-center p-4', panel: 'rounded-2xl max-h-[90vh]' },
+  bottom: { overlay: 'items-end sm:items-center sm:p-4', panel: 'rounded-t-2xl sm:rounded-2xl max-h-[90vh]' },
+  full: { overlay: 'items-stretch sm:items-center sm:p-4', panel: 'h-full sm:h-auto sm:rounded-2xl sm:max-h-[90vh]' },
 };
 
-export default function Modal({ open, title, onClose, children, placement = 'center' }: ModalProps) {
+const SIZE = {
+  md: 'max-w-md',
+  lg: 'max-w-2xl',
+};
+
+export default function Modal({ open, title, onClose, children, placement = 'center', size = 'md' }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -44,7 +52,7 @@ export default function Modal({ open, title, onClose, children, placement = 'cen
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white dark:bg-gray-800 ${PLACEMENT[placement].panel} p-6 w-full max-w-md space-y-3 shadow-xl max-h-[90vh] overflow-y-auto animate-pop-in`}
+        className={`bg-white dark:bg-gray-800 ${PLACEMENT[placement].panel} ${SIZE[size]} p-6 w-full space-y-3 shadow-xl overflow-y-auto animate-pop-in`}
       >
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{title}</h2>
         {children}

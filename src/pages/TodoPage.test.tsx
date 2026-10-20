@@ -73,4 +73,50 @@ describe('TodoPage', () => {
     render(<TodoPage />);
     expect(within(screen.getByRole('region', { name: '미분류' })).getByText('예전 할 일')).toBeTruthy();
   });
+
+  it('제목을 누르면 카테고리 형식의 일지가 열리고, 쓴 내용은 닫을 때 저장된다', async () => {
+    const user = userEvent.setup();
+    useCategoryStore.setState({
+      categories: [{ id: 'c1', name: '회사', color: '#3b82f6', order: 0, journalType: 'work', createdAt: '2026-09-01' }],
+    });
+    useTodoStore.setState({
+      todos: [
+        { id: 't1', title: '결제 API', done: true, date: todayKey(), categoryId: 'c1', priority: 'medium', category: '', createdAt: '2026-09-01' },
+      ],
+    });
+    render(<TodoPage />);
+
+    await user.click(screen.getByRole('button', { name: '결제 API' }));
+    const dialog = screen.getByRole('dialog', { name: '회사 일지' });
+    const editor = within(dialog).getByLabelText<HTMLTextAreaElement>('일지 내용');
+    expect(editor.value.startsWith('## 한 일')).toBe(true);
+
+    await user.type(editor, '트랜잭션 정리');
+    await user.click(within(dialog).getByRole('button', { name: '닫기' }));
+    expect(useTodoStore.getState().todos[0].note).toContain('트랜잭션 정리');
+    expect(screen.getByRole('img', { name: '일지 있음' })).toBeTruthy();
+
+    // 일지가 있으면 삭제를 한 번 더 확인한다.
+    await user.click(screen.getByRole('button', { name: /결제 API 메뉴/ }));
+    await user.click(screen.getByRole('menuitem', { name: '삭제' }));
+    expect(useTodoStore.getState().todos).toHaveLength(1);
+    expect(screen.getByText('일지도 함께 삭제돼요.')).toBeTruthy();
+    await user.click(screen.getByRole('menuitem', { name: '삭제' }));
+    expect(useTodoStore.getState().todos).toHaveLength(0);
+  });
+
+  it('템플릿만 있는 일지는 저장하지 않고, 미분류는 일기로 열린다', async () => {
+    const user = userEvent.setup();
+    useTodoStore.setState({
+      todos: [
+        { id: 't1', title: '산책', done: false, date: todayKey(), priority: 'medium', category: '', createdAt: '2026-09-01' },
+      ],
+    });
+    render(<TodoPage />);
+
+    await user.click(screen.getByRole('button', { name: '산책' }));
+    const dialog = screen.getByRole('dialog', { name: '일기' });
+    await user.click(within(dialog).getByRole('button', { name: '닫기' }));
+    expect(useTodoStore.getState().todos[0]).not.toHaveProperty('note');
+  });
 });

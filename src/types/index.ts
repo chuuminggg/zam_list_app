@@ -1,6 +1,7 @@
 export type {
   Category,
   FixedItem,
+  JournalType,
   LedgerType,
   ProductSource,
   StockLink,

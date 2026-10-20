@@ -15,8 +15,17 @@ export interface Todo {
   priority: 'high' | 'medium' | 'low';
   /** 예전 UI의 자유 입력 카테고리 이름. 새 항목은 ''이고 categoryId를 쓴다. */
   category: string;
+  /** 일지 (마크다운). 비었거나 템플릿 그대로면 없다. */
+  note?: string;
   createdAt: string;
 }
+
+/** 일지 하나의 최대 글자 수 */
+export const MAX_NOTE_LENGTH = 20000;
+
+/** 일지 형식: 회사 업무 일지 / 일기 */
+export const JOURNAL_TYPES = ['work', 'diary'] as const;
+export type JournalType = (typeof JOURNAL_TYPES)[number];
 
 /** 할 일 카테고리 */
 export interface Category {
@@ -26,6 +35,8 @@ export interface Category {
   color: string;
   /** 표시 순서 (오름차순) */
   order: number;
+  /** 이 카테고리 할 일의 일지 형식. 없으면 일기 */
+  journalType?: JournalType;
   createdAt: string;
 }
 
