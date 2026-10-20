@@ -8,15 +8,27 @@ import FixedItemModal from '../components/ledger/FixedItemModal';
 import FixedMonthSheet from '../components/ledger/FixedMonthSheet';
 import LedgerCalendar from '../components/ledger/LedgerCalendar';
 import LedgerCategoryModal from '../components/ledger/LedgerCategoryModal';
+import LedgerFilterBar from '../components/ledger/LedgerFilterBar';
 import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
 import PaymentBreakdown from '../components/ledger/PaymentBreakdown';
 import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
+import TrendCard from '../components/ledger/TrendCard';
+import { useLedgerCategories } from '../hooks/useLedgerCategories';
 import { useLedgerStore } from '../stores/ledgerStore';
 import type { FixedItem, Transaction } from '../types';
 import { formatDateHeading, todayKey, type DateKey } from '../utils/date';
 import { addMonths, entriesForMonth, formatMonth, monthKey, summarize, type MonthKey } from '../utils/ledger';
+import {
+  EMPTY_FILTER,
+  allEntries,
+  categoryChanges,
+  entryTotals,
+  filterEntries,
+  isFilterActive,
+  type LedgerFilter,
+} from '../utils/ledgerAnalysis';
 
 /** 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 내역. */
 type FormTarget = Transaction | 'new' | null;
@@ -36,12 +48,32 @@ export default function LedgerPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [budgetOpen, setBudgetOpen] = useState(false);
+  /** 검색 막대를 닫으면 null */
+  const [filter, setFilter] = useState<LedgerFilter | null>(null);
+  const categories = useLedgerCategories();
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
+  const previousSummary = useMemo(
+    () => summarize(entriesForMonth(transactions, fixedItems, addMonths(month, -1))),
+    [transactions, fixedItems, month]
+  );
+  const changes = useMemo(() => categoryChanges(summary, previousSummary), [summary, previousSummary]);
   const visibleEntries = selectedDate ? entries.filter((e) => e.date === selectedDate) : entries;
 
   const thisMonth = monthKey(new Date());
+  const searching = filter !== null && isFilterActive(filter);
+  // 전체 기간 검색은 기록이 있는 가장 이른 달부터 이번 달(또는 보고 있는 달)까지 훑는다.
+  const searchBase = useMemo(
+    () =>
+      filter?.scope === 'all' ? allEntries(transactions, fixedItems, month > thisMonth ? month : thisMonth) : null,
+    [filter?.scope, transactions, fixedItems, month, thisMonth]
+  );
+  const listedEntries =
+    filter && searching
+      ? filterEntries(searchBase ?? visibleEntries, filter, (e) => categories.find(e.type, e.category).name)
+      : visibleEntries;
+  const searchTotals = entryTotals(listedEntries);
   const goTo = (next: MonthKey) => {
     setMonth(next);
     setSelectedDate(null);
@@ -87,9 +119,14 @@ export default function LedgerPage() {
       </aside>
 
       <div className="space-y-6 min-w-0">
+        {!selectedDate && (
+          // 데이터가 없으면 카드째 숨긴다.
+          <TrendCard month={month} className={CARD} />
+        )}
+
         {!selectedDate && summary.expense > 0 && (
           <div className={CARD}>
-            <CategoryBreakdown summary={summary} />
+            <CategoryBreakdown summary={summary} changes={changes} />
           </div>
         )}
 
@@ -103,7 +140,7 @@ export default function LedgerPage() {
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             <h2 className="font-bold text-gray-900 dark:text-white">
-              {selectedDate ? formatDateHeading(selectedDate) : '전체 내역'}
+              {searching ? '검색 결과' : selectedDate ? formatDateHeading(selectedDate) : '전체 내역'}
             </h2>
             {selectedDate && (
               <button
@@ -114,7 +151,15 @@ export default function LedgerPage() {
                 전체 보기
               </button>
             )}
-            <div className="ml-auto flex gap-1.5">
+            <div className="ml-auto flex items-center gap-1.5">
+              <IconButton
+                label={filter ? '검색 닫기' : '내역 검색'}
+                aria-pressed={filter !== null}
+                className={`px-2 text-base ${filter ? 'text-indigo-600 dark:text-indigo-400' : ''}`}
+                onClick={() => setFilter(filter ? null : EMPTY_FILTER)}
+              >
+                🔍
+              </IconButton>
               <Button size="sm" variant="ghost" onClick={() => setFixedOpen(true)}>
                 고정 항목
               </Button>
@@ -124,11 +169,20 @@ export default function LedgerPage() {
             </div>
           </div>
 
+          {filter && (
+            <LedgerFilterBar
+              filter={filter}
+              onChange={setFilter}
+              monthLabel={selectedDate ? formatDateHeading(selectedDate) : `${Number(month.slice(5))}월`}
+              result={{ count: listedEntries.length, ...searchTotals }}
+            />
+          )}
+
           <TransactionList
-            entries={visibleEntries}
+            entries={listedEntries}
             onEdit={setFormTarget}
             onEditFixed={setFixedTarget}
-            emptyTitle={selectedDate ? '이날 내역이 없어요' : '이번 달 내역이 없어요'}
+            emptyTitle={searching ? '조건에 맞는 내역이 없어요' : selectedDate ? '이날 내역이 없어요' : '이번 달 내역이 없어요'}
           />
         </div>
       </div>

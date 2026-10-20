@@ -14,6 +14,12 @@ interface TransactionListProps {
   emptyTitle: string;
 }
 
+/** 올해가 아니면 연도를 붙인다 (전체 기간 검색 결과) */
+const dateHeading = (date: string) => {
+  const year = date.slice(0, 4);
+  return `${year === String(new Date().getFullYear()) ? '' : `${year}년 `}${formatDateHeading(date)}`;
+};
+
 const signed = (entry: Pick<LedgerEntry, 'type' | 'amount'>) =>
   `${entry.type === 'income' ? '+' : '-'}${formatWon(entry.amount)}`;
 
@@ -37,7 +43,7 @@ export default function TransactionList({ entries, onEdit, onEditFixed, emptyTit
         return (
           <div key={date}>
             <div className="flex items-baseline justify-between px-1 mb-1">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400">{formatDateHeading(date)}</h3>
+              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400">{dateHeading(date)}</h3>
               <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
                 {net > 0 ? '+' : net < 0 ? '-' : ''}
                 {formatWon(Math.abs(net))}

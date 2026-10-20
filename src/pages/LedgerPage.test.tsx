@@ -261,6 +261,68 @@ describe('LedgerPage', () => {
     expect(screen.getByText('이월 +250,000원')).toBeTruthy();
   });
 
+  it('월별 추이·전월 대비 증감을 보여주고, 내역을 검색어·조건·전체 기간으로 찾는다', async () => {
+    useLedgerStore.setState({
+      transactions: [
+        { id: 'a', type: 'expense', amount: 5000, category: 'cafe', memo: '라떼', date: '2026-07-02', createdAt: 'x' },
+        { id: 'b', type: 'expense', amount: 10000, category: 'food', memo: '점심', date: '2026-08-05', createdAt: 'x' },
+        {
+          id: 'c',
+          type: 'expense',
+          amount: 25000,
+          category: 'food',
+          memo: '저녁 회식',
+          paymentMethod: 'card',
+          date: '2026-09-03',
+          createdAt: 'x',
+        },
+        {
+          id: 'd',
+          type: 'expense',
+          amount: 4500,
+          category: 'cafe',
+          memo: '라떼',
+          paymentMethod: 'cash',
+          date: '2026-09-04',
+          createdAt: 'x',
+        },
+      ],
+    });
+    render(<LedgerPage />);
+
+    const trend = screen.getByRole('region', { name: '월별 추이' });
+    expect(within(trend).getByText('지난달보다 19,500원(195%) 더 썼어요')).toBeTruthy();
+    expect(within(trend).getByText('9월 수입 0원, 지출 29,500원')).toBeTruthy();
+    const byCategory = screen.getByRole('region', { name: '카테고리별 지출' });
+    expect(within(byCategory).getByTitle('지난달보다 15,000원 늘었어요').textContent).toBe('지난달보다 ▲1.5만');
+    expect(within(byCategory).getByText('새로')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: '내역 검색' }));
+    const result = () => screen.getByLabelText('검색 결과').textContent;
+    await userEvent.type(screen.getByLabelText('검색어'), '라떼');
+    expect(result()).toBe('1건 · 지출 4,500원');
+    expect(screen.getByRole('heading', { name: '검색 결과' })).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('radio', { name: '전체 기간' }));
+    expect(result()).toBe('2건 · 지출 9,500원');
+    expect(within(screen.getByRole('region', { name: '내역' })).getAllByText('라떼')).toHaveLength(2);
+
+    await userEvent.selectOptions(screen.getByLabelText('결제수단'), 'cash');
+    expect(result()).toBe('1건 · 지출 4,500원');
+
+    // 검색어를 지우고 카테고리로만: 지출 > 식비, 전체 기간
+    await userEvent.clear(screen.getByLabelText('검색어'));
+    await userEvent.selectOptions(screen.getByLabelText('결제수단'), '');
+    await userEvent.selectOptions(screen.getByLabelText('종류'), 'expense');
+    await userEvent.selectOptions(screen.getByLabelText('카테고리'), 'food');
+    expect(result()).toBe('2건 · 지출 35,000원');
+
+    await userEvent.click(screen.getByRole('button', { name: '조건 지우기' }));
+    expect(screen.getByRole('heading', { name: '전체 내역' })).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: '검색 닫기' }));
+    expect(screen.queryByLabelText('검색어')).toBeNull();
+  });
+
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {
     render(<LedgerPage />);
     await userEvent.click(screen.getByRole('button', { name: '고정 항목' }));
