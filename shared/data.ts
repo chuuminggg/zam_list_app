@@ -155,10 +155,29 @@ export interface LedgerCategorySetting {
   createdAt: string;
 }
 
+/**
+ * 월 예산. 총예산(id 'total') 하나와, 카테고리별 예산을 쓰면 지출 카테고리마다 하나(id `cat-<카테고리 id>`).
+ * 한 번 정한 금액은 다음에 바꿀 때까지 계속 적용하고, 특정 달만 덮어쓸 수 있다.
+ */
+export interface Budget {
+  id: string;
+  /** 카테고리 예산이면 지출 카테고리 id. 없으면 총예산 */
+  category?: string;
+  /** 적용을 시작한 달(YYYY-MM)별 금액. 다음 키 전까지 적용한다. 0이면 그 달부터 예산 없음 */
+  amounts: Record<string, number>;
+  /** 그 달만 덮어쓴 금액 */
+  overrides?: Record<string, number>;
+  /** 총예산 전용: 카테고리별 예산도 쓴다 */
+  byCategory?: boolean;
+  /** 총예산 전용: 남은 금액·초과분을 다음 달로 넘기기 시작한 달. 없으면 이월하지 않는다 (카테고리 예산에도 적용) */
+  carryoverFrom?: string;
+  createdAt: string;
+}
+
 /** 가계부 금액 상한 (원) */
 export const MAX_LEDGER_AMOUNT = 1_000_000_000_000;
 
-export const COLLECTION_IDS = ['todos', 'wishlist', 'categories', 'transactions', 'fixedItems', 'ledgerCategories'] as const;
+export const COLLECTION_IDS = ['todos', 'wishlist', 'categories', 'transactions', 'fixedItems', 'ledgerCategories', 'budgets'] as const;
 export type CollectionId = (typeof COLLECTION_IDS)[number];
 
 export interface CollectionItem {
@@ -168,6 +187,7 @@ export interface CollectionItem {
   transactions: Transaction;
   fixedItems: FixedItem;
   ledgerCategories: LedgerCategorySetting;
+  budgets: Budget;
 }
 
 /** 로그인한 사용자 */

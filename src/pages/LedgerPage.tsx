@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import Button from '../components/common/Button';
 import IconButton from '../components/common/IconButton';
+import BudgetCard from '../components/ledger/BudgetCard';
+import BudgetModal from '../components/ledger/BudgetModal';
 import CategoryBreakdown from '../components/ledger/CategoryBreakdown';
 import FixedItemModal from '../components/ledger/FixedItemModal';
 import FixedMonthSheet from '../components/ledger/FixedMonthSheet';
@@ -33,6 +35,7 @@ export default function LedgerPage() {
   const [fixedTarget, setFixedTarget] = useState<FixedItem | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [budgetOpen, setBudgetOpen] = useState(false);
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
@@ -72,6 +75,10 @@ export default function LedgerPage() {
 
         <div className={CARD}>
           <MonthSummary summary={summary} monthLabel={`${Number(month.slice(5))}월`} />
+        </div>
+
+        <div className={CARD}>
+          <BudgetCard month={month} onEdit={() => setBudgetOpen(true)} />
         </div>
 
         <div className={`${CARD} px-2 sm:px-3`}>
@@ -160,6 +167,7 @@ export default function LedgerPage() {
         />
       )}
       {categoriesOpen && <LedgerCategoryModal onClose={() => setCategoriesOpen(false)} />}
+      {budgetOpen && <BudgetModal month={month} onClose={() => setBudgetOpen(false)} />}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 export type {
+  Budget,
   Category,
   FixedItem,
   FixedOverride,

@@ -1,7 +1,9 @@
 import EmptyState from '../common/EmptyState';
 import WishCard from './WishCard';
 import { PROVIDER_LABEL } from '../../../shared/api';
+import { useBudget } from '../../hooks/useBudget';
 import { useProviders } from '../../hooks/useProviders';
+import { monthKey } from '../../utils/ledger';
 import type { WishItem, WishFilter, WishShopFilter } from '../../types';
 
 const EMPTY_COPY: Record<WishFilter, { title: string; description: string }> = {
@@ -35,6 +37,9 @@ export default function WishList({
   refreshErrors,
 }: WishListProps) {
   const providers = useProviders();
+  // 원하는 항목 가격을 이번 달 남은 예산과 견줘 보여준다.
+  const { totalStatus } = useBudget(monthKey(new Date()));
+  const budgetRemaining = totalStatus ? totalStatus.remaining : null;
   const linkDisabledOf = (item: WishItem) =>
     item.source ? providers?.find((p) => p.id === item.source!.provider)?.linkDisabled : undefined;
 
@@ -63,6 +68,7 @@ export default function WishList({
           refreshing={refreshing.has(item.id)}
           refreshError={refreshErrors[item.id]}
           linkDisabled={linkDisabledOf(item)}
+          budgetRemaining={budgetRemaining}
         />
       ))}
     </ul>

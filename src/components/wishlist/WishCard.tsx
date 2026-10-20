@@ -7,6 +7,7 @@ import { STATUSES, STATUS_LABEL, STATUS_TONE } from '../../constants/wish';
 import { setWishStatus } from '../../stores/wishPurchase';
 import { useWishStore } from '../../stores/wishStore';
 import type { WishItem } from '../../types';
+import { wishBudgetHint } from '../../utils/budget';
 import { canRefresh, priceChange } from '../../utils/wishRefresh';
 
 const SOURCE_TONE = 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400';
@@ -29,6 +30,8 @@ interface WishCardProps {
   refreshError?: string;
   /** 출처 쇼핑몰 링크로 이동할 수 없는 사유 (쿠팡 파트너스 키 없음 등). 있으면 링크를 숨긴다. */
   linkDisabled?: string;
+  /** 이번 달 남은 예산 (원, 음수면 초과). 예산이 없으면 null */
+  budgetRemaining?: number | null;
 }
 
 export default function WishCard({
@@ -39,12 +42,14 @@ export default function WishCard({
   refreshing = false,
   refreshError,
   linkDisabled,
+  budgetRemaining = null,
 }: WishCardProps) {
   const deleteItem = useWishStore((s) => s.deleteItem);
   const sourceLabel = item.source ? PROVIDER_LABEL[item.source.provider] : undefined;
   // 매장 재고는 다이소·올리브영에서 검색해 담은 상품만 확인할 수 있다.
   const canCheckStock = item.source != null && supportsStockCheck(item.source.provider);
   const change = priceChange(item);
+  const budgetHint = item.status === 'want' ? wishBudgetHint(item.price, budgetRemaining) : null;
 
   return (
     <li className="bg-white dark:bg-gray-800 rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200 dark:border-gray-700 flex gap-3 transition-colors hover:border-gray-300 dark:hover:border-gray-600 animate-fade-in">
@@ -116,6 +121,13 @@ export default function WishCard({
             </span>
           )}
         </div>
+        {budgetHint && (
+          <p
+            className={`text-xs mt-1 ${budgetHint.over ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            💰 {budgetHint.text}
+          </p>
+        )}
         {refreshError && (
           <p className="text-xs text-red-600 dark:text-red-400 mt-1">{refreshError}</p>
         )}

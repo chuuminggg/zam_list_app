@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_NOTE_LENGTH } from '../../shared/data.js';
-import { parseCategory, parseFixedItem, parseLedgerCategory, parseTodo, parseTransaction } from './validate.js';
+import {
+  parseBudget,
+  parseCategory,
+  parseFixedItem,
+  parseLedgerCategory,
+  parseTodo,
+  parseTransaction,
+} from './validate.js';
 
 const base = {
   id: 't1',
@@ -10,6 +17,23 @@ const base = {
   date: '2026-10-15',
   createdAt: '2026-10-15T00:00:00Z',
 };
+
+describe('parseBudget', () => {
+  const budget = { id: 'total', amounts: { '2026-09': 1000000 }, createdAt: 'x' };
+
+  it('달별 금액·덮어쓰기·카테고리 방식·이월 시작 달을 저장한다', () => {
+    const full = { ...budget, overrides: { '2026-10': 0 }, byCategory: true, carryoverFrom: '2026-09' };
+    expect(parseBudget(full)).toEqual(full);
+    expect(parseBudget({ ...budget, id: 'cat-food', category: 'food' })).toMatchObject({ category: 'food' });
+  });
+
+  it('형식이 틀리면 거부한다', () => {
+    expect(() => parseBudget({ ...budget, amounts: { '2026-9': 1 } })).toThrow(/amounts/);
+    expect(() => parseBudget({ ...budget, amounts: { '2026-09': -1 } })).toThrow(/amounts/);
+    expect(() => parseBudget({ ...budget, amounts: undefined })).toThrow(/amounts/);
+    expect(() => parseBudget({ ...budget, carryoverFrom: 'soon' })).toThrow(/carryoverFrom/);
+  });
+});
 
 describe('parseLedgerCategory', () => {
   const category = { id: 'c1', type: 'expense', name: '반려동물', color: '#22c55e', icon: '🐶', createdAt: 'x' };

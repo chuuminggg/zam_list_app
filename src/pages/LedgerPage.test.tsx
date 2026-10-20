@@ -2,6 +2,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useLedgerCategoryStore } from '../stores/ledgerCategoryStore';
 import { useLedgerPrefsStore } from '../stores/ledgerPrefsStore';
 import { useLedgerStore } from '../stores/ledgerStore';
@@ -20,6 +21,7 @@ afterEach(() => {
   useLedgerStore.setState({ transactions: [], fixedItems: [] });
   useLedgerPrefsStore.setState({ lastPaymentMethod: undefined });
   useLedgerCategoryStore.setState({ categories: [] });
+  useBudgetStore.setState({ budgets: [] });
   localStorage.clear();
 });
 
@@ -219,6 +221,44 @@ describe('LedgerPage', () => {
     await userEvent.click(within(confirm).getByRole('button', { name: '옮기고 삭제' }));
     expect(useLedgerStore.getState().transactions).toMatchObject([{ category: 'etc' }]);
     expect(useLedgerCategoryStore.getState().categories.map((c) => c.name)).toEqual(['식비']);
+  });
+
+  it('예산을 정하면 남은 금액을 보여주고, 그 달만 바꾸거나 카테고리별로 나누고 이월한다', async () => {
+    useLedgerStore.setState({
+      transactions: [
+        { id: 'a', type: 'expense', amount: 200000, category: 'food', date: '2026-09-10', createdAt: 'x' },
+        { id: 'b', type: 'expense', amount: 50000, category: 'cafe', date: '2026-10-02', createdAt: 'x' },
+      ],
+    });
+    render(<LedgerPage />);
+    const remaining = () => screen.getByLabelText('남은 예산').textContent;
+
+    await userEvent.click(screen.getByRole('button', { name: '예산 정하기' }));
+    let modal = screen.getByRole('dialog', { name: '9월 예산' });
+    await userEvent.type(within(modal).getByLabelText('금액'), '500000');
+    await userEvent.click(within(modal).getByRole('button', { name: '9월부터 계속' }));
+    expect(remaining()).toBe('300,000원');
+
+    // 10월만 300,000원, 카테고리별(카페 30,000원), 이월 켜기
+    await userEvent.click(screen.getByRole('button', { name: '다음 달' }));
+    expect(remaining()).toBe('450,000원');
+    await userEvent.click(screen.getByRole('button', { name: '예산 수정' }));
+    modal = screen.getByRole('dialog', { name: '10월 예산' });
+    await userEvent.clear(within(modal).getByLabelText('금액'));
+    await userEvent.type(within(modal).getByLabelText('금액'), '300000');
+    await userEvent.click(within(modal).getByText('총예산 + 카테고리별'));
+    await userEvent.type(within(modal).getByLabelText('카페·간식 예산'), '30000');
+    await userEvent.click(within(modal).getByRole('checkbox'));
+    await userEvent.click(within(modal).getByRole('button', { name: '10월만 적용' }));
+
+    expect(remaining()).toBe('250,000원');
+    const byCategory = screen.getByRole('list', { name: '카테고리별 예산' });
+    expect(within(byCategory).getByText('20,000원 초과')).toBeTruthy();
+
+    // 11월은 다시 500,000원, 10월에 남은 250,000원이 넘어온다
+    await userEvent.click(screen.getByRole('button', { name: '다음 달' }));
+    expect(remaining()).toBe('750,000원');
+    expect(screen.getByText('이월 +250,000원')).toBeTruthy();
   });
 
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {

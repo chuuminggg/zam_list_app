@@ -14,6 +14,7 @@ import {
   startKakaoRequest,
   upsertItems,
 } from '../api/client';
+import { useBudgetStore } from '../stores/budgetStore';
 import { useCategoryStore } from '../stores/categoryStore';
 import { useLedgerCategoryStore } from '../stores/ledgerCategoryStore';
 import { useLedgerStore } from '../stores/ledgerStore';
@@ -97,6 +98,16 @@ const ledgerCategoriesBinding: Binding<'ledgerCategories'> = {
     }),
 };
 
+const budgetsBinding: Binding<'budgets'> = {
+  collection: 'budgets',
+  get: () => useBudgetStore.getState().budgets,
+  set: (budgets) => useBudgetStore.setState({ budgets }),
+  subscribe: (listener) =>
+    useBudgetStore.subscribe((s, p) => {
+      if (s.budgets !== p.budgets) listener(s.budgets, p.budgets);
+    }),
+};
+
 const BINDINGS = [
   todosBinding,
   wishBinding,
@@ -104,6 +115,7 @@ const BINDINGS = [
   transactionsBinding,
   fixedItemsBinding,
   ledgerCategoriesBinding,
+  budgetsBinding,
 ] as const;
 
 const setSync = useSyncStore.setState;

@@ -9,6 +9,7 @@ import {
   type Category,
   type CollectionId,
   type CollectionItem,
+  type Budget,
   type FixedItem,
   type LedgerCategorySetting,
   type PricePoint,
@@ -253,6 +254,36 @@ export function parseLedgerCategory(value: unknown): LedgerCategorySetting {
   });
 }
 
+const MAX_BUDGET_MONTHS = 240;
+
+/** 달(YYYY-MM)별 금액. 0은 예산 없음 */
+function parseMonthAmounts(value: unknown, field: string): Record<string, number> {
+  const obj = asObject(value, field);
+  const entries = Object.entries(obj);
+  if (entries.length > MAX_BUDGET_MONTHS) invalid(field);
+  for (const [month, amount] of entries) {
+    if (!MONTH_PATTERN.test(month)) invalid(field);
+    if (typeof amount !== 'number' || !Number.isInteger(amount) || amount < 0 || amount > MAX_LEDGER_AMOUNT) {
+      invalid(field);
+    }
+  }
+  return Object.fromEntries(entries) as Record<string, number>;
+}
+
+export function parseBudget(value: unknown): Budget {
+  const obj = asObject(value, 'budget');
+  const overrides = obj.overrides == null ? undefined : parseMonthAmounts(obj.overrides, 'overrides');
+  return compact({
+    id: id(obj),
+    category: optStr(obj, 'category', 64),
+    amounts: parseMonthAmounts(obj.amounts, 'amounts'),
+    overrides: overrides && Object.keys(overrides).length > 0 ? overrides : undefined,
+    byCategory: obj.byCategory == null ? undefined : obj.byCategory === true ? true : invalid('byCategory'),
+    carryoverFrom: optPattern(obj, 'carryoverFrom', MONTH_PATTERN),
+    createdAt: str(obj, 'createdAt', 40, 1),
+  });
+}
+
 export const PARSERS: { [C in CollectionId]: (value: unknown) => CollectionItem[C] } = {
   todos: parseTodo,
   wishlist: parseWishItem,
@@ -260,6 +291,7 @@ export const PARSERS: { [C in CollectionId]: (value: unknown) => CollectionItem[
   transactions: parseTransaction,
   fixedItems: parseFixedItem,
   ledgerCategories: parseLedgerCategory,
+  budgets: parseBudget,
 };
 
 /** `{ items: [...] }` 요청 본문을 검증한다. 같은 id가 여러 번 오면 마지막 것을 쓴다. */
