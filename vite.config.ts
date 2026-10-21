@@ -3,6 +3,7 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import devApi from './server/devApi'
+import ocrAssets from './build/ocrAssets'
 
 export default defineConfig(({ mode }) => {
   // 서버 함수가 읽는 환경변수(DATABASE_URL 등)를 개발 서버 process.env에 주입.
@@ -13,7 +14,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    plugins: [react(), tailwindcss(), devApi()],
+    plugins: [react(), tailwindcss(), devApi(), ocrAssets()],
     test: {
       // 화면 테스트는 파일 상단 `@vitest-environment jsdom` 주석으로 환경을 바꾼다.
       include: ['server/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],

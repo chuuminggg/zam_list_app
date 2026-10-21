@@ -21,9 +21,11 @@ interface TransactionFormProps {
   defaultDate: string;
   /** 추가 모드에서 미리 채울 값 (위시 구매 등). date가 있으면 defaultDate보다 우선한다. */
   draft?: TransactionDraft;
+  /** 추가 모드 제목 (영수증 인식 등). 생략하면 "내역 추가" */
+  title?: string;
 }
 
-export default function TransactionForm({ open, onClose, transaction, defaultDate, draft }: TransactionFormProps) {
+export default function TransactionForm({ open, onClose, transaction, defaultDate, draft, title }: TransactionFormProps) {
   const addTransaction = useLedgerStore((s) => s.addTransaction);
   const updateTransaction = useLedgerStore((s) => s.updateTransaction);
   const deleteTransaction = useLedgerStore((s) => s.deleteTransaction);
@@ -65,7 +67,7 @@ export default function TransactionForm({ open, onClose, transaction, defaultDat
   return (
     <Modal
       open={open}
-      title={transaction ? '내역 수정' : fromWish ? '구매 지출 기록' : '내역 추가'}
+      title={transaction ? '내역 수정' : fromWish ? '구매 지출 기록' : (title ?? '내역 추가')}
       onClose={onClose}
       placement="bottom"
     >

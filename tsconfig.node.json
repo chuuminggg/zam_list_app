@@ -20,5 +20,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "server/devApi.ts"]
+  "include": ["vite.config.ts", "server/devApi.ts", "build/ocrAssets.ts"]
 }

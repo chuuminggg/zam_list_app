@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import Button from '../components/common/Button';
 import IconButton from '../components/common/IconButton';
 import BudgetCard from '../components/ledger/BudgetCard';
@@ -16,6 +16,7 @@ import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
 import TrendCard from '../components/ledger/TrendCard';
 import { useLedgerCategories } from '../hooks/useLedgerCategories';
+import { useReceiptScan } from '../hooks/useReceiptScan';
 import { useLedgerStore } from '../stores/ledgerStore';
 import type { FixedItem, Transaction } from '../types';
 import { formatDateHeading, todayKey, type DateKey } from '../utils/date';
@@ -29,6 +30,7 @@ import {
   isFilterActive,
   type LedgerFilter,
 } from '../utils/ledgerAnalysis';
+import type { TransactionDraft } from '../utils/wishPurchase';
 
 /** 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 내역. */
 type FormTarget = Transaction | 'new' | null;
@@ -51,6 +53,10 @@ export default function LedgerPage() {
   /** 검색 막대를 닫으면 null */
   const [filter, setFilter] = useState<LedgerFilter | null>(null);
   const categories = useLedgerCategories();
+  /** 영수증 인식으로 채운 지출 초안. 있으면 확인 시트를 연다. */
+  const [receipt, setReceipt] = useState<TransactionDraft | null>(null);
+  const receiptInput = useRef<HTMLInputElement>(null);
+  const { scan, scanning } = useReceiptScan(setReceipt);
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
@@ -138,8 +144,9 @@ export default function LedgerPage() {
         )}
 
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="font-bold text-gray-900 dark:text-white">
+          {/* 아주 좁은 화면에서는 버튼 묶음이 다음 줄로 내려간다 (글자는 줄바꿈하지 않는다). */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-bold text-gray-900 dark:text-white whitespace-nowrap">
               {searching ? '검색 결과' : selectedDate ? formatDateHeading(selectedDate) : '전체 내역'}
             </h2>
             {selectedDate && (
@@ -151,7 +158,7 @@ export default function LedgerPage() {
                 전체 보기
               </button>
             )}
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex items-center gap-1.5 whitespace-nowrap">
               <IconButton
                 label={filter ? '검색 닫기' : '내역 검색'}
                 aria-pressed={filter !== null}
@@ -160,6 +167,28 @@ export default function LedgerPage() {
               >
                 🔍
               </IconButton>
+              <IconButton
+                label={scanning ? '영수증 읽는 중' : '영수증으로 추가'}
+                disabled={scanning}
+                className={`px-2 text-base ${scanning ? 'animate-pulse' : ''}`}
+                onClick={() => receiptInput.current?.click()}
+              >
+                {scanning ? '⏳' : '📷'}
+              </IconButton>
+              {/* 휴대폰에서는 카메라로 바로 찍거나 앨범·스크린샷을 고를 수 있다. */}
+              <input
+                ref={receiptInput}
+                type="file"
+                accept="image/*"
+                aria-label="영수증 사진"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  // 같은 사진을 다시 골라도 onChange가 오도록 비운다.
+                  e.target.value = '';
+                  if (file) void scan(file);
+                }}
+              />
               <Button size="sm" variant="ghost" onClick={() => setFixedOpen(true)}>
                 고정 항목
               </Button>
@@ -195,6 +224,17 @@ export default function LedgerPage() {
           transaction={editing}
           defaultDate={defaultDate}
           onClose={() => setFormTarget(null)}
+        />
+      )}
+
+      {receipt && (
+        <TransactionForm
+          key="receipt"
+          open
+          draft={receipt}
+          title="영수증 확인"
+          defaultDate={receipt.date}
+          onClose={() => setReceipt(null)}
         />
       )}
 

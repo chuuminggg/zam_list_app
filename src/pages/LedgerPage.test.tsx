@@ -6,7 +6,13 @@ import { useBudgetStore } from '../stores/budgetStore';
 import { useLedgerCategoryStore } from '../stores/ledgerCategoryStore';
 import { useLedgerPrefsStore } from '../stores/ledgerPrefsStore';
 import { useLedgerStore } from '../stores/ledgerStore';
+import { useToastStore } from '../stores/toastStore';
+import { readImageText } from '../utils/ocr';
 import LedgerPage from './LedgerPage';
+
+// 사진 줄이기(canvas)와 글자 인식(wasm)은 가짜로 바꾸고, 읽은 글자에서 값을 뽑는 부분만 실제로 돌린다.
+vi.mock('../utils/image', () => ({ prepareReceiptImage: async () => ({}) }));
+vi.mock('../utils/ocr', () => ({ readImageText: vi.fn() }));
 
 beforeEach(() => {
   // 달이 바뀌는 경계에 걸리지 않도록 시계를 고정한다 (Date만 가짜로 바꿔 userEvent 타이머는 그대로 둔다).
@@ -22,6 +28,8 @@ afterEach(() => {
   useLedgerPrefsStore.setState({ lastPaymentMethod: undefined });
   useLedgerCategoryStore.setState({ categories: [] });
   useBudgetStore.setState({ budgets: [] });
+  useToastStore.setState({ toast: null });
+  vi.mocked(readImageText).mockReset();
   localStorage.clear();
 });
 
@@ -321,6 +329,43 @@ describe('LedgerPage', () => {
     expect(screen.getByRole('heading', { name: '전체 내역' })).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: '검색 닫기' }));
     expect(screen.queryByLabelText('검색어')).toBeNull();
+  });
+
+  it('영수증 사진을 올리면 인식한 값으로 채운 확인 시트를 열고, 저장하면 지출이 된다', async () => {
+    const photo = new File(['x'], 'receipt.jpg', { type: 'image/jpeg' });
+    const toast = () => useToastStore.getState().toast?.message;
+    render(<LedgerPage />);
+
+    vi.mocked(readImageText).mockResolvedValueOnce('스타벅스 역삼점\n2026.09.20 14:02\n합계 12,800\n신용카드 승인');
+    await userEvent.upload(screen.getByLabelText('영수증 사진'), photo);
+    expect(toast()).toBeUndefined();
+
+    const sheet = screen.getByRole('dialog', { name: '영수증 확인' });
+    expect((within(sheet).getByLabelText('금액') as HTMLInputElement).value).toBe('12,800');
+    expect((within(sheet).getByDisplayValue('스타벅스 역삼점') as HTMLInputElement).value).toBe('스타벅스 역삼점');
+    await userEvent.click(within(sheet).getByRole('button', { name: '추가' }));
+
+    expect(useLedgerStore.getState().transactions).toEqual([
+      expect.objectContaining({
+        type: 'expense',
+        amount: 12800,
+        category: 'cafe',
+        date: '2026-09-20',
+        memo: '스타벅스 역삼점',
+        paymentMethod: 'card',
+      }),
+    ]);
+
+    // 영수증이 아니면 시트를 열지 않는다
+    vi.mocked(readImageText).mockResolvedValueOnce('고양이 사진');
+    await userEvent.upload(screen.getByLabelText('영수증 사진'), photo);
+    expect(toast()).toBe('사진에서 영수증이나 결제 내역을 찾지 못했어요.');
+    expect(screen.queryByRole('dialog', { name: '영수증 확인' })).toBeNull();
+
+    // 인식 도구를 못 불러오면 그 안내를 보여준다
+    vi.mocked(readImageText).mockRejectedValueOnce(new Error('글자 인식 도구를 불러오지 못했어요.'));
+    await userEvent.upload(screen.getByLabelText('영수증 사진'), photo);
+    expect(toast()).toBe('글자 인식 도구를 불러오지 못했어요.');
   });
 
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {
