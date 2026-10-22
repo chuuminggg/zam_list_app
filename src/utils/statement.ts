@@ -3,19 +3,20 @@ import { entriesForMonth } from './ledger';
 import { guessCategory, type ReceiptCategoryOption } from './receiptText';
 import type { StatementRow } from './statementText';
 
-/** 처음에 체크를 풀어 둔 까닭 */
+/** 자동 저장에서 건너뛰는 까닭 */
 export type StatementFlag = 'cancelled' | 'moving' | 'duplicate' | 'fixed';
 
-export const STATEMENT_FLAG_LABEL: Record<StatementFlag, string> = {
-  cancelled: '취소됨',
-  moving: '돈 이동?',
+const SKIP_LABEL: Record<StatementFlag, string> = {
+  cancelled: '취소',
+  moving: '돈 이동',
   duplicate: '이미 있음',
-  fixed: '고정 항목과 겹침',
+  fixed: '고정 항목',
 };
 
-/** 확인 목록의 한 줄 (가계부에 넣을 후보) */
+/** 읽은 거래 한 줄 (가계부에 넣을 후보) */
 export interface StatementEntry {
   key: string;
+  /** 저장할 줄인지 (flag가 없으면 true) */
   checked: boolean;
   flag: StatementFlag | null;
   dateUncertain: boolean;
@@ -111,8 +112,8 @@ function choosePaymentMethod(row: StatementRow, ctx: StatementContext): PaymentM
 }
 
 /**
- * 읽은 거래 줄을 확인 목록 줄로 만든다. 카테고리·결제수단을 채우고,
- * 취소·돈 이동·가계부에 이미 있는 내역·고정 항목과 겹치는 줄은 체크를 풀어 둔다.
+ * 읽은 거래 줄을 가계부 후보로 만든다. 카테고리·결제수단을 채우고,
+ * 취소·돈 이동·가계부에 이미 있는 내역·고정 항목과 겹치는 줄은 저장하지 않도록 표시한다.
  */
 export function buildStatementEntries(rows: StatementRow[], ctx: StatementContext): StatementEntry[] {
   const history = categoryHistory(ctx.transactions);
@@ -159,4 +160,21 @@ export function buildStatementEntries(rows: StatementRow[], ctx: StatementContex
       paymentMethod: row.type === 'expense' ? choosePaymentMethod(row, ctx) : undefined,
     };
   });
+}
+
+/**
+ * 자동 저장 뒤 안내. 건너뛴 까닭별 건수와 날짜를 짐작한 건수를 붙인다.
+ * 예: "3건 추가했어요 · 건너뜀 이미 있음 2·돈 이동 1 · 날짜 확인 1건"
+ */
+export function statementNotice(entries: StatementEntry[]): string {
+  const saved = entries.filter((e) => e.checked);
+  const skipped = new Map<StatementFlag, number>();
+  for (const e of entries) if (e.flag) skipped.set(e.flag, (skipped.get(e.flag) ?? 0) + 1);
+  const parts = [saved.length > 0 ? `${saved.length}건 추가했어요` : '새로 추가할 내역이 없어요'];
+  if (skipped.size > 0) {
+    parts.push(`건너뜀 ${[...skipped].map(([flag, n]) => `${SKIP_LABEL[flag]} ${n}`).join('·')}`);
+  }
+  const uncertain = saved.filter((e) => e.dateUncertain).length;
+  if (uncertain > 0) parts.push(`날짜 확인 ${uncertain}건`);
+  return parts.join(' · ');
 }

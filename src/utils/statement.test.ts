@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FixedItem, Transaction } from '../types';
-import { buildStatementEntries, mergeStatementScans, type StatementContext } from './statement';
+import { buildStatementEntries, mergeStatementScans, statementNotice, type StatementContext } from './statement';
 import type { StatementRow } from './statementText';
 
 const row = (r: Partial<StatementRow> & Pick<StatementRow, 'amount' | 'name'>): StatementRow => ({
@@ -77,7 +77,7 @@ describe('statement entries', () => {
     expect(entries.map((e) => e.paymentMethod)).toEqual(['transfer', 'transfer', 'cash', 'card', undefined]);
   });
 
-  it('취소(원래 결제까지)·돈 이동·이미 있는 내역·고정 항목과 겹치는 줄은 체크를 풀어 둔다', () => {
+  it('취소(원래 결제까지)·돈 이동·이미 있는 내역·고정 항목과 겹치는 줄은 저장하지 않는다', () => {
     const fixed: FixedItem = {
       id: 'f1',
       type: 'expense',
@@ -107,5 +107,17 @@ describe('statement entries', () => {
       ['fixed', false],
       [null, true],
     ]);
+    expect(statementNotice(entries)).toBe('1건 추가했어요 · 건너뜀 취소 2·돈 이동 1·이미 있음 1·고정 항목 1');
+  });
+
+  it('안내: 날짜를 짐작한 줄 수, 저장할 줄이 없을 때', () => {
+    const entries = buildStatementEntries(
+      [row({ amount: 3000, name: 'GS25', dateUncertain: true }), row({ amount: 4000, name: 'CU' })],
+      ctx()
+    );
+    expect(statementNotice(entries)).toBe('2건 추가했어요 · 날짜 확인 1건');
+    expect(statementNotice(entries.map((e) => ({ ...e, checked: false, flag: 'duplicate' as const })))).toBe(
+      '새로 추가할 내역이 없어요 · 건너뜀 이미 있음 2'
+    );
   });
 });

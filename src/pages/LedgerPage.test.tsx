@@ -368,32 +368,35 @@ describe('LedgerPage', () => {
     expect(toast()).toBe('글자 인식 도구를 불러오지 못했어요.');
   });
 
-  it('거래 내역 캡처 여러 장을 올리면 확인 목록을 열고, 고른 줄만 한 번에 추가하고 되돌릴 수 있다', async () => {
+  it('거래 내역 캡처 여러 장을 올리면 줄마다 한 건씩 바로 저장하고, 돈 이동·이미 있는 줄은 건너뛰며 되돌릴 수 있다', async () => {
     const shot = (name: string) => new File(['x'], name, { type: 'image/png' });
+    const upload = () => {
+      vi.mocked(readImageText)
+        .mockResolvedValueOnce('2026.09.21\n스타벅스 -4,500원\nGS25 -3,200원')
+        // 스크롤 캡처: 앞 사진의 마지막 줄이 겹친다
+        .mockResolvedValueOnce('GS25 -3,200원\n2026.09.20\n신한카드 카드대금 -500,000원\n홍길동 +20,000원');
+      return userEvent.upload(screen.getByLabelText('영수증 사진'), [shot('a.png'), shot('b.png')]);
+    };
+    const toast = () => useToastStore.getState().toast;
     render(<LedgerPage />);
 
-    vi.mocked(readImageText)
-      .mockResolvedValueOnce('2026.09.21\n스타벅스 -4,500원\nGS25 -3,200원')
-      // 스크롤 캡처: 앞 사진의 마지막 줄이 겹친다
-      .mockResolvedValueOnce('GS25 -3,200원\n2026.09.20\n신한카드 카드대금 -500,000원\n홍길동 +20,000원');
-    await userEvent.upload(screen.getByLabelText('영수증 사진'), [shot('a.png'), shot('b.png')]);
-
-    const sheet = screen.getByRole('dialog', { name: '거래 내역 확인' });
-    expect(within(sheet).getAllByRole('listitem')).toHaveLength(4);
-    expect((within(sheet).getByRole('checkbox', { name: '신한카드 카드대금 추가' }) as HTMLInputElement).checked).toBe(false);
-    expect(within(sheet).getByText('돈 이동?')).toBeTruthy();
-
-    await userEvent.click(within(sheet).getByRole('checkbox', { name: 'GS25 추가' }));
-    await userEvent.click(within(sheet).getByRole('button', { name: /선택한 2건 추가/ }));
-
+    await upload();
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(useLedgerStore.getState().transactions).toEqual([
       expect.objectContaining({ type: 'expense', amount: 4500, category: 'cafe', date: '2026-09-21', paymentMethod: 'card' }),
+      expect.objectContaining({ type: 'expense', amount: 3200, date: '2026-09-21', memo: 'GS25' }),
       expect.objectContaining({ type: 'income', amount: 20000, date: '2026-09-20', memo: '홍길동' }),
     ]);
-    const toast = useToastStore.getState().toast;
-    expect(toast?.message).toBe('2건 추가했어요');
-    toast?.action?.run();
+    expect(toast()?.message).toBe('3건 추가했어요 · 건너뜀 돈 이동 1');
+    toast()?.action?.run();
     expect(useLedgerStore.getState().transactions).toEqual([]);
+
+    // 같은 캡처를 두 번 올리면 두 번째는 이미 있는 줄이라 건너뛴다
+    await upload();
+    await upload();
+    expect(useLedgerStore.getState().transactions).toHaveLength(3);
+    expect(toast()?.message).toBe('새로 추가할 내역이 없어요 · 건너뜀 이미 있음 3·돈 이동 1');
+    expect(toast()?.action).toBeUndefined();
   });
 
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {

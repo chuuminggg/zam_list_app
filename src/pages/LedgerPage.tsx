@@ -12,7 +12,6 @@ import LedgerFilterBar from '../components/ledger/LedgerFilterBar';
 import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
 import PaymentBreakdown from '../components/ledger/PaymentBreakdown';
-import StatementImportSheet from '../components/ledger/StatementImportSheet';
 import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
 import TrendCard from '../components/ledger/TrendCard';
@@ -31,7 +30,6 @@ import {
   isFilterActive,
   type LedgerFilter,
 } from '../utils/ledgerAnalysis';
-import type { StatementEntry } from '../utils/statement';
 import type { TransactionDraft } from '../utils/wishPurchase';
 
 /** 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 내역. */
@@ -57,10 +55,8 @@ export default function LedgerPage() {
   const categories = useLedgerCategories();
   /** 영수증 인식으로 채운 지출 초안. 있으면 확인 시트를 연다. */
   const [receipt, setReceipt] = useState<TransactionDraft | null>(null);
-  /** 거래 내역 캡처에서 읽은 여러 건. 있으면 확인 목록을 연다. */
-  const [statement, setStatement] = useState<StatementEntry[] | null>(null);
   const receiptInput = useRef<HTMLInputElement>(null);
-  const { scan, scanning } = useReceiptScan({ onDraft: setReceipt, onEntries: setStatement });
+  const { scan, scanning } = useReceiptScan(setReceipt);
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
@@ -242,8 +238,6 @@ export default function LedgerPage() {
           onClose={() => setReceipt(null)}
         />
       )}
-
-      {statement && <StatementImportSheet entries={statement} onClose={() => setStatement(null)} />}
 
       {fixedTarget && (
         <FixedMonthSheet
