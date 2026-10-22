@@ -52,8 +52,8 @@ const FULL_DATE = /(?<!\d)(20\d{2}|\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*
 const KOREAN_MONTH_DAY = /(?<!\d)(\d{1,2})\s*월\s*(\d{1,2})\s*일/;
 /** 카드 문자처럼 연도 없는 10/19. 다른 날짜를 못 찾았을 때만 쓴다. */
 const SLASH_MONTH_DAY = /(?<![\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/;
-const DATE_ANYWHERE = new RegExp(`${FULL_DATE.source}|${KOREAN_MONTH_DAY.source}|${SLASH_MONTH_DAY.source}`, 'g');
-const TIME = /(?<!\d)\d{1,2}\s*:\s*\d{2}(?:\s*:\s*\d{2})?(?!\d)/g;
+export const DATE_ANYWHERE = new RegExp(`${FULL_DATE.source}|${KOREAN_MONTH_DAY.source}|${SLASH_MONTH_DAY.source}`, 'g');
+export const TIME = /(?<!\d)\d{1,2}\s*:\s*\d{2}(?:\s*:\s*\d{2})?(?!\d)/g;
 
 /** 천 단위 쉼표 금액이거나 '원'·'₩'이 붙은 숫자 */
 const MONEY = /(?:₩\s*)?(?<![\d,])(\d{1,3}(?:,\d{3})+|\d{1,13})(?![\d,])(\s*원)?/g;
@@ -88,7 +88,7 @@ const CATEGORY_KEYWORDS: [string, RegExp][] = [
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-function addDays(date: string, days: number): string {
+export function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
@@ -108,7 +108,7 @@ function plausible(date: string | null, today: string): date is string {
 }
 
 /** 연도 없는 월·일. 올해로 보고, 미래가 되면 작년으로 본다. */
-function monthDay(month: number, day: number, today: string): string | null {
+export function monthDay(month: number, day: number, today: string): string | null {
   const year = Number(today.slice(0, 4));
   const date = toDate(year, month, day);
   if (date && date > addDays(today, 1)) return toDate(year - 1, month, day);

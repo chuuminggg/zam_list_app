@@ -12,6 +12,7 @@ import LedgerFilterBar from '../components/ledger/LedgerFilterBar';
 import LedgerSettingsModal from '../components/ledger/LedgerSettingsModal';
 import MonthSummary from '../components/ledger/MonthSummary';
 import PaymentBreakdown from '../components/ledger/PaymentBreakdown';
+import StatementImportSheet from '../components/ledger/StatementImportSheet';
 import TransactionForm from '../components/ledger/TransactionForm';
 import TransactionList from '../components/ledger/TransactionList';
 import TrendCard from '../components/ledger/TrendCard';
@@ -30,6 +31,7 @@ import {
   isFilterActive,
   type LedgerFilter,
 } from '../utils/ledgerAnalysis';
+import type { StatementEntry } from '../utils/statement';
 import type { TransactionDraft } from '../utils/wishPurchase';
 
 /** 폼이 닫혀 있으면 null, 추가 모드면 'new', 수정 모드면 대상 내역. */
@@ -55,8 +57,10 @@ export default function LedgerPage() {
   const categories = useLedgerCategories();
   /** 영수증 인식으로 채운 지출 초안. 있으면 확인 시트를 연다. */
   const [receipt, setReceipt] = useState<TransactionDraft | null>(null);
+  /** 거래 내역 캡처에서 읽은 여러 건. 있으면 확인 목록을 연다. */
+  const [statement, setStatement] = useState<StatementEntry[] | null>(null);
   const receiptInput = useRef<HTMLInputElement>(null);
-  const { scan, scanning } = useReceiptScan(setReceipt);
+  const { scan, scanning } = useReceiptScan({ onDraft: setReceipt, onEntries: setStatement });
 
   const entries = useMemo(() => entriesForMonth(transactions, fixedItems, month), [transactions, fixedItems, month]);
   const summary = useMemo(() => summarize(entries), [entries]);
@@ -168,25 +172,26 @@ export default function LedgerPage() {
                 🔍
               </IconButton>
               <IconButton
-                label={scanning ? '영수증 읽는 중' : '영수증으로 추가'}
+                label={scanning ? '사진 읽는 중' : '영수증·내역 캡처로 추가'}
                 disabled={scanning}
                 className={`px-2 text-base ${scanning ? 'animate-pulse' : ''}`}
                 onClick={() => receiptInput.current?.click()}
               >
                 {scanning ? '⏳' : '📷'}
               </IconButton>
-              {/* 휴대폰에서는 카메라로 바로 찍거나 앨범·스크린샷을 고를 수 있다. */}
+              {/* 휴대폰에서는 카메라로 바로 찍거나 앨범·스크린샷을 고를 수 있다. 스크롤 캡처는 여러 장 한 번에. */}
               <input
                 ref={receiptInput}
                 type="file"
                 accept="image/*"
+                multiple
                 aria-label="영수증 사진"
                 className="hidden"
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
+                  const files = Array.from(e.target.files ?? []);
                   // 같은 사진을 다시 골라도 onChange가 오도록 비운다.
                   e.target.value = '';
-                  if (file) void scan(file);
+                  void scan(files);
                 }}
               />
               <Button size="sm" variant="ghost" onClick={() => setFixedOpen(true)}>
@@ -237,6 +242,8 @@ export default function LedgerPage() {
           onClose={() => setReceipt(null)}
         />
       )}
+
+      {statement && <StatementImportSheet entries={statement} onClose={() => setStatement(null)} />}
 
       {fixedTarget && (
         <FixedMonthSheet

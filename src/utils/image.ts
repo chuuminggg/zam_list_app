@@ -3,6 +3,7 @@ const MAX_SIDE = 2000;
 
 /**
  * 사진을 긴 변 2000px 이하 캔버스로 그린다. 휴대폰 사진(4000px 이상)을 그대로 읽으면 느리다.
+ * 세로로 긴 스크롤 캡처는 글자가 너무 작아지지 않게 세로 8000px까지 둔다.
  * EXIF 회전은 브라우저가 반영한다.
  */
 export async function prepareReceiptImage(file: File): Promise<HTMLCanvasElement> {
@@ -13,7 +14,7 @@ export async function prepareReceiptImage(file: File): Promise<HTMLCanvasElement
   } catch {
     throw new Error('이 사진을 열 수 없어요. 다른 사진으로 시도해 주세요.');
   }
-  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height / 4));
   const canvas = document.createElement('canvas');
   canvas.width = Math.round(bitmap.width * scale);
   canvas.height = Math.round(bitmap.height * scale);

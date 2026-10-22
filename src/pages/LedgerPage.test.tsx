@@ -368,6 +368,34 @@ describe('LedgerPage', () => {
     expect(toast()).toBe('글자 인식 도구를 불러오지 못했어요.');
   });
 
+  it('거래 내역 캡처 여러 장을 올리면 확인 목록을 열고, 고른 줄만 한 번에 추가하고 되돌릴 수 있다', async () => {
+    const shot = (name: string) => new File(['x'], name, { type: 'image/png' });
+    render(<LedgerPage />);
+
+    vi.mocked(readImageText)
+      .mockResolvedValueOnce('2026.09.21\n스타벅스 -4,500원\nGS25 -3,200원')
+      // 스크롤 캡처: 앞 사진의 마지막 줄이 겹친다
+      .mockResolvedValueOnce('GS25 -3,200원\n2026.09.20\n신한카드 카드대금 -500,000원\n홍길동 +20,000원');
+    await userEvent.upload(screen.getByLabelText('영수증 사진'), [shot('a.png'), shot('b.png')]);
+
+    const sheet = screen.getByRole('dialog', { name: '거래 내역 확인' });
+    expect(within(sheet).getAllByRole('listitem')).toHaveLength(4);
+    expect((within(sheet).getByRole('checkbox', { name: '신한카드 카드대금 추가' }) as HTMLInputElement).checked).toBe(false);
+    expect(within(sheet).getByText('돈 이동?')).toBeTruthy();
+
+    await userEvent.click(within(sheet).getByRole('checkbox', { name: 'GS25 추가' }));
+    await userEvent.click(within(sheet).getByRole('button', { name: /선택한 2건 추가/ }));
+
+    expect(useLedgerStore.getState().transactions).toEqual([
+      expect.objectContaining({ type: 'expense', amount: 4500, category: 'cafe', date: '2026-09-21', paymentMethod: 'card' }),
+      expect.objectContaining({ type: 'income', amount: 20000, date: '2026-09-20', memo: '홍길동' }),
+    ]);
+    const toast = useToastStore.getState().toast;
+    expect(toast?.message).toBe('2건 추가했어요');
+    toast?.action?.run();
+    expect(useLedgerStore.getState().transactions).toEqual([]);
+  });
+
   it('고정 항목을 추가하면 이번 달 내역에 들어간다', async () => {
     render(<LedgerPage />);
     await userEvent.click(screen.getByRole('button', { name: '고정 항목' }));

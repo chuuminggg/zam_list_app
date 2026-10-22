@@ -10,6 +10,8 @@ interface LedgerStore {
   fixedItems: FixedItem[];
   /** 새 내역을 추가하고 만든 내역을 돌려준다. */
   addTransaction: (transaction: NewTransaction) => Transaction;
+  /** 여러 내역을 한 번에 추가하고 만든 내역들을 돌려준다 (거래 내역 캡처 등). */
+  addTransactions: (transactions: NewTransaction[]) => Transaction[];
   updateTransaction: (id: string, updates: Partial<NewTransaction>) => void;
   deleteTransaction: (id: string) => void;
   /** 지웠던 내역을 id 그대로 되살린다 (되돌리기). 이미 있는 id는 건너뛴다. */
@@ -31,6 +33,11 @@ export const useLedgerStore = create<LedgerStore>()(
       addTransaction: (transaction) => {
         const next = { ...transaction, ...created() };
         set((state) => ({ transactions: [...state.transactions, next] }));
+        return next;
+      },
+      addTransactions: (transactions) => {
+        const next = transactions.map((t) => ({ ...t, ...created() }));
+        set((state) => ({ transactions: [...state.transactions, ...next] }));
         return next;
       },
       updateTransaction: (id, updates) =>
