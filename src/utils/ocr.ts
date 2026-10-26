@@ -1,4 +1,6 @@
 import type { Worker } from 'tesseract.js';
+import { inkColor, ocrCanvas } from './image';
+import { linesToText } from './ocrText';
 
 /** 워커·엔진·언어 데이터를 받는 경로. build/ocrAssets.ts가 같은 도메인에서 내려준다. */
 const OCR_PATH = '/ocr';
@@ -30,12 +32,17 @@ function getWorker(): Promise<Worker> {
   return worker;
 }
 
-/** 이미지에서 글자를 읽는다. 사진은 기기 밖으로 나가지 않는다. */
+/**
+ * 이미지에서 글자를 읽는다. 사진은 기기 밖으로 나가지 않는다.
+ * 흑백(다크 모드는 반전) 사본으로 읽고, 금액 글씨 색은 원본에서 봐 파랑은 +, 빨강은 -를 붙인다.
+ */
 export async function readImageText(image: HTMLCanvasElement): Promise<string> {
   const w = await getWorker();
   try {
-    const { data } = await w.recognize(image);
-    return data.text;
+    const { data } = await w.recognize(ocrCanvas(image), {}, { text: true, blocks: true });
+    const lines = (data.blocks ?? []).flatMap((block) => block.paragraphs.flatMap((paragraph) => paragraph.lines));
+    if (lines.length === 0) return data.text;
+    return linesToText(lines, (box) => inkColor(image, box));
   } catch (error) {
     throw new Error('사진에서 글자를 읽지 못했어요. 다른 사진으로 시도해 주세요.', { cause: error });
   }
