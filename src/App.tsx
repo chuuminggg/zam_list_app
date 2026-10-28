@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
 import SyncButton from './components/sync/SyncButton';
 import ThemeToggle from './components/common/ThemeToggle';
 import Toaster from './components/common/Toaster';
 import LedgerSheetHost from './components/ledger/LedgerSheetHost';
+import NewsletterModal from './components/newsletter/NewsletterModal';
 import { useTheme } from './hooks/useTheme';
 import FortunePage from './pages/FortunePage';
 import KakaoCallbackPage from './pages/KakaoCallbackPage';
@@ -21,6 +22,7 @@ const NAV_IDLE = 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:
 export default function App() {
   useTheme();
   useEffect(startSync, []);
+  const [newsletterOpen, setNewsletterOpen] = useState(false);
 
   return (
     <BrowserRouter>
@@ -47,6 +49,10 @@ export default function App() {
               <NavLink to="/report" className={({ isActive }) => `${NAV_BASE} ${isActive ? NAV_ACTIVE : NAV_IDLE}`}>
                 리포트
               </NavLink>
+              {/* 페이지가 아니라 모달이라 탭처럼 보이되 활성 표시는 하지 않는다. */}
+              <button type="button" onClick={() => setNewsletterOpen(true)} className={`${NAV_BASE} ${NAV_IDLE}`}>
+                뉴스레터
+              </button>
             </div>
             <div className="order-2 sm:order-3 ml-auto flex items-center">
               <SyncButton />
@@ -65,6 +71,7 @@ export default function App() {
           </Routes>
         </main>
         <LedgerSheetHost />
+        {newsletterOpen && <NewsletterModal onClose={() => setNewsletterOpen(false)} />}
         <Toaster />
       </div>
     </BrowserRouter>

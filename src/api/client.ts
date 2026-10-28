@@ -11,6 +11,7 @@ import type {
 } from '../../shared/api';
 import type { AuthUser, CollectionId, CollectionItem } from '../../shared/data';
 import type { KakaoCallbackResult, KakaoMode, KakaoState } from '../../shared/kakao';
+import type { NewsletterIssue, NewsletterSummary } from '../../shared/newsletter';
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;
@@ -177,3 +178,10 @@ export const replaceCollection = <C extends CollectionId>(
 
 export const deleteItem = (token: string, collection: CollectionId, id: string) =>
   apiRequest<null>('data', { method: 'DELETE', params: { collection, id }, headers: auth(token) });
+
+export const fetchNewsletterIssues = (signal?: AbortSignal) =>
+  apiGet<{ issues: NewsletterSummary[] }>('newsletter', {}, signal).then((d) => d.issues);
+
+/** date: 'latest' 또는 YYYY-MM-DD */
+export const fetchNewsletterIssue = (date: string, signal?: AbortSignal) =>
+  apiGet<{ issue: NewsletterIssue }>('newsletter', { date }, signal).then((d) => d.issue);
