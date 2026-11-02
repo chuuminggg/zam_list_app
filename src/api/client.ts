@@ -12,6 +12,7 @@ import type {
 import type { AuthUser, CollectionId, CollectionItem } from '../../shared/data';
 import type { KakaoCallbackResult, KakaoMode, KakaoState } from '../../shared/kakao';
 import type { NewsletterIssue, NewsletterSummary } from '../../shared/newsletter';
+import type { TodayDeals } from '../../shared/todayDeals';
 
 export class ApiClientError extends Error {
   readonly code: ApiErrorCode;
@@ -185,3 +186,7 @@ export const fetchNewsletterIssues = (signal?: AbortSignal) =>
 /** date: 'latest' 또는 YYYY-MM-DD */
 export const fetchNewsletterIssue = (date: string, signal?: AbortSignal) =>
   apiGet<{ issue: NewsletterIssue }>('newsletter', { date }, signal).then((d) => d.issue);
+
+/** 올리브영 오특(오늘의 특가) */
+export const fetchOliveyoungTodayDeals = (signal?: AbortSignal) =>
+  apiGet<TodayDeals>('deals', { provider: 'oliveyoung' }, signal);

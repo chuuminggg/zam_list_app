@@ -5,11 +5,11 @@ import ThemeToggle from './components/common/ThemeToggle';
 import Toaster from './components/common/Toaster';
 import LedgerSheetHost from './components/ledger/LedgerSheetHost';
 import NewsletterModal from './components/newsletter/NewsletterModal';
+import ReportModal from './components/report/ReportModal';
 import { useTheme } from './hooks/useTheme';
 import FortunePage from './pages/FortunePage';
 import KakaoCallbackPage from './pages/KakaoCallbackPage';
 import LedgerPage from './pages/LedgerPage';
-import ReportPage from './pages/ReportPage';
 import TodoPage from './pages/TodoPage';
 import WishlistPage from './pages/WishlistPage';
 import { startSync } from './sync/sync';
@@ -23,6 +23,7 @@ export default function App() {
   useTheme();
   useEffect(startSync, []);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <BrowserRouter>
@@ -46,10 +47,10 @@ export default function App() {
               <NavLink to="/fortune" className={({ isActive }) => `${NAV_BASE} ${isActive ? NAV_ACTIVE : NAV_IDLE}`}>
                 운세
               </NavLink>
-              <NavLink to="/report" className={({ isActive }) => `${NAV_BASE} ${isActive ? NAV_ACTIVE : NAV_IDLE}`}>
+              {/* 리포트·뉴스레터는 페이지가 아니라 모달이라 탭처럼 보이되 활성 표시는 하지 않는다. */}
+              <button type="button" onClick={() => setReportOpen(true)} className={`${NAV_BASE} ${NAV_IDLE}`}>
                 리포트
-              </NavLink>
-              {/* 페이지가 아니라 모달이라 탭처럼 보이되 활성 표시는 하지 않는다. */}
+              </button>
               <button type="button" onClick={() => setNewsletterOpen(true)} className={`${NAV_BASE} ${NAV_IDLE}`}>
                 뉴스레터
               </button>
@@ -66,11 +67,11 @@ export default function App() {
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/fortune" element={<FortunePage />} />
-            <Route path="/report" element={<ReportPage />} />
             <Route path="/auth/kakao" element={<KakaoCallbackPage />} />
           </Routes>
         </main>
         <LedgerSheetHost />
+        {reportOpen && <ReportModal onClose={() => setReportOpen(false)} />}
         {newsletterOpen && <NewsletterModal onClose={() => setNewsletterOpen(false)} />}
         <Toaster />
       </div>
